@@ -1803,6 +1803,10 @@
         <span class="nav-label"><i class="ico " style="--ico:url(/static/icons/external@2x.png)"></i>Web 情报</span>
         <span class="nav-badge">web</span>
       </li>
+      <li class="nav-item" onclick="openEggStation()" title="在浏览器打开鸡蛋站">
+        <span class="nav-label"><i class="ico " style="--ico:url(/static/icons/link@2x.png)"></i>鸡蛋站</span>
+        <span class="nav-badge">↗</span>
+      </li>
       <li class="nav-item" data-view="files" onclick="switchView('files')">
         <span class="nav-label"><i class="ico " style="--ico:url(/static/icons/files@2x.png)"></i>群文件决策</span>
         <span class="nav-badge" id="badge-files">0</span>
@@ -3945,10 +3949,13 @@
   // ===== 链接化：把消息正文里的 URL 变成可点链接 =====
   function linkify(text) {
     const safe = esc(text);
-    return safe.replace(/(https?:\/\/[^\s<]+)/g, (raw) => {
+    // 同时识别带协议 URL 与福利消息里的裸域名（例如「站点:shep-api.com」）。
+    // 先匹配带协议，再匹配裸域名，避免把已生成的 anchor 再次处理。
+    return safe.replace(/(https?:\/\/[^\s<]+|(?<![\w@/])(?:www\.)?[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s<]*)?)/gi, (raw) => {
       const m = raw.match(/^(.*?)([),.;:!?，。；：！？、）】]+)?$/);
-      const url = m[1], tail = m[2] || '';
-      return `<a class="msg-link" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${url}</a>${tail}`;
+      const label = m[1], tail = m[2] || '';
+      const url = /^https?:\/\//i.test(label) ? label : `https://${label}`;
+      return `<a class="msg-link" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label}</a>${tail}`;
     });
   }
 
@@ -5233,6 +5240,10 @@
 
   function openIntelStation() {
     window.open('https://www.mjjgo.com', '_blank', 'noopener,noreferrer');
+  }
+
+  function openEggStation() {
+    window.open('https://tkkgv8.gicp.fun', '_blank', 'noopener,noreferrer');
   }
 
   // Doge 名言系统
