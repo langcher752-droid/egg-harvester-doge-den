@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doge 动画 · 鸡蛋收割机</title>
+<style>
+  :root {
+    --bg-base: #e7ebf0;
+    --bg-surface: #ffffff;
+    --bg-surface-hover: #f4f4f5;
+    --border: #dfe1e5;
+    --border-subtle: #eef0f2;
+    --text-primary: #1f2937;
+    --text-secondary: #707579;
+    --text-muted: #a2abb2;
+    --accent-blue: #3390ec;
+    --accent-green: #4fae4e;
+    --accent-red: #df3f40;
+    --accent-amber: #c27c0e;
+    --accent-purple: #7d59b5;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color-scheme: light;
+  }
+  html[data-theme="dark"] { color-scheme: dark; }
+  html[data-theme="dark"] body { --bg-base:#111827; --bg-surface:#1f2937; --bg-surface-hover:#273449; --border:#374151; --border-subtle:#334155; --text-primary:#f3f4f6; --text-secondary:#cbd5e1; --text-muted:#94a3b8; }
+  html[data-theme="light"] body { --bg-base:#f8fafc; --bg-surface:#ffffff; --bg-surface-hover:#f1f5f9; --border:#d8dee8; --border-subtle:#e9edf3; --text-primary:#172033; --text-secondary:#516070; --text-muted:#8793a3; }
+  html[data-theme="nord"] body { --bg-base:#e5e9f0; --bg-surface:#eceff4; --bg-surface-hover:#e5e9f0; --border:#c5ccd8; --border-subtle:#d8dee9; --text-primary:#2e3440; --text-secondary:#4c566a; --text-muted:#7b88a1; --accent-blue:#5e81ac; --accent-green:#8fbcbb; --accent-red:#bf616a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    overflow-y: auto;
+    padding-bottom: 28px;
+  }
+
+  /* ── 顶部工具条 ───────────────────────────────── */
+  .toolbar {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .tb-title { display: flex; align-items: baseline; gap: 9px; }
+  .tb-title b { font-size: 15px; letter-spacing: -.2px; }
+  .tb-title span { font-size: 11px; color: var(--text-muted); }
+  .tb-group { display: flex; gap: 6px; align-items: center; }
+  .tb-sep { width: 1px; height: 20px; background: var(--border); }
+  .btn {
+    font-family: inherit; font-size: 12px; line-height: 1;
+    padding: 8px 13px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-surface);
+    color: var(--text-primary);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .12s, border-color .12s, transform .08s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.on { background: rgba(51,144,236,.12); border-color: rgba(51,144,236,.45); color: #1e6fc0; }
+  .tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .hint {
+    font-size: 11.5px; color: var(--text-secondary);
+    background: #f4f6f8; border: 1px solid var(--border-subtle);
+    padding: 6px 11px; border-radius: 999px;
+  }
+  .hint b { color: var(--accent-blue); }
+
+  /* ── 主体 ─────────────────────────────────────── */
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 18px; }
+  .section-head {
+    display: flex; align-items: baseline; gap: 9px; margin: 6px 2px 11px;
+  }
+  .section-head h2 { font-size: 13px; font-weight: 650; letter-spacing: -.1px; }
+  .section-head em { font-style: normal; font-size: 11.5px; color: var(--text-muted); }
+  .section-head .count {
+    font-size: 11px; color: var(--text-secondary);
+    background: #fff; border: 1px solid var(--border);
+    padding: 2px 8px; border-radius: 999px;
+  }
+
+  /* 立绘参考 */
+  .heroes { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 11px; margin-bottom: 22px; }
+  .hero {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 11px; overflow: hidden;
+  }
+  .hero .thumb {
+    height: 132px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #fafbfc, #f2f4f7);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .hero .thumb img { max-width: 78%; max-height: 108px; object-fit: contain; }
+  .hero .meta { padding: 8px 11px 10px; }
+  .hero .meta b { font-size: 12px; display: block; }
+  .hero .meta span { font-size: 11px; color: var(--text-muted); }
+
+  /* 贴纸墙 */
+  .sticker-wall {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 13px; padding: 12px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px;
+    margin-bottom: 24px;
+  }
+  .sticker {
+    aspect-ratio: 1; border-radius: 10px; cursor: pointer;
+    background: #f7f8fa; border: 1.5px solid transparent;
+    display: flex; align-items: center; justify-content: center; padding: 7px;
+    transition: transform .16s cubic-bezier(.34,1.56,.64,1), background .14s, border-color .14s, box-shadow .16s;
+    position: relative;
+  }
+  .sticker img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  .sticker:hover {
+    transform: translateY(-3px) scale(1.07);
+    background: #fff; border-color: rgba(51,144,236,.5);
+    box-shadow: 0 6px 16px rgba(31,41,55,.13);
+    z-index: 5;
+  }
+  .sticker.sel {
+    border-color: var(--accent-blue); background: rgba(51,144,236,.1);
+    box-shadow: 0 0 0 3px rgba(51,144,236,.16);
+  }
+  .sticker.sel::after {
+    content: "✓"; position: absolute; top: -5px; right: -5px;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: var(--accent-blue); color: #fff;
+    font-size: 11px; line-height: 17px; text-align: center; font-weight: 700;
+  }
+  /* 当前正在用的 App 吉祥物 */
+  .sticker.is-mascot {
+    border-color: var(--accent-green, #15803d);
+    box-shadow: 0 0 0 3px rgba(21,128,61,.18);
+  }
+  .sticker.is-mascot::before {
+    content: "吉祥物"; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
+    background: var(--accent-green, #15803d); color: #fff; border-radius: 999px;
+    font-size: 9px; line-height: 14px; padding: 0 6px; white-space: nowrap; font-weight: 600;
+  }
+  .card.is-mascot-anim {
+    border-color: var(--accent-green, #15803d);
+    box-shadow: 0 0 0 3px rgba(21,128,61,.16);
+  }
+  .card.is-mascot-anim .cap::after {
+    content: " · 当前动作"; color: var(--accent-green, #15803d); font-weight: 600;
+  }
+
+  /* 状态脸对照表 */
+  .moods { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+  .mood {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 10px; cursor: pointer; transition: transform .16s, border-color .16s, box-shadow .16s;
+  }
+  .mood:hover { transform: translateY(-2px); border-color: rgba(21,128,61,.5); box-shadow: 0 6px 16px rgba(15,23,42,.1); }
+  .mood img { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+  .mood .m1 { font-size: 12px; font-weight: 600; color: var(--ink-1); }
+  .mood .m2 { font-size: 10.5px; color: var(--ink-3); }
+
+  /* 动画卡片 */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 13px; }
+  .card {
+    position: relative; height: 208px; overflow: hidden;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .18s, box-shadow .18s, border-color .18s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 26px rgba(31,41,55,.14);
+    border-color: #cdd4dc;
+  }
+  .card .stage {
+    position: relative; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card .doge {
+    width: 118px; height: 118px; object-fit: contain;
+    filter: drop-shadow(0 6px 10px rgba(31,41,55,.18));
+  }
+  .card .cap {
+    position: absolute; left: 9px; bottom: 9px;
+    font-size: 11px; color: var(--text-secondary);
+    background: rgba(255,255,255,.9); border: 1px solid var(--border-subtle);
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .card .idx {
+    position: absolute; top: 8px; right: 9px;
+    font-size: 10.5px; color: var(--text-muted);
+    background: #f4f6f8; border: 1px solid var(--border-subtle);
+    padding: 2px 7px; border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 20 个动画 ─────────────────────────────────── */
+  .a-spin      .doge { animation: spin 2.6s linear infinite; }
+  .a-bounce    .doge { animation: bounce 1s ease-in-out infinite; }
+  .a-swing     .doge { transform-origin: 50% 0; animation: swing 2.4s ease-in-out infinite; }
+  .a-pulse     .doge { animation: pulse 1.4s ease-in-out infinite; }
+  .a-shake     .doge { animation: shake .5s linear infinite; }
+  .a-fly .stage { overflow: hidden; }
+  .a-fly       .doge { animation: fly 3.4s ease-in-out infinite; }
+  .a-zoom      .doge { animation: zoom 2s ease-in-out infinite; }
+  .a-rainbow   .doge { animation: rainbow 4s linear infinite; }
+  .a-flip      .doge { animation: flip 2.6s ease-in-out infinite; }
+  .a-wave .stage { gap: 4px; }
+  .a-wave      .doge { width: 40px; height: 40px; animation: wave 1.2s ease-in-out infinite; }
+  .a-wave .doge:nth-child(2) { animation-delay: .15s; }
+  .a-wave .doge:nth-child(3) { animation-delay: .3s; }
+  .a-wave .doge:nth-child(4) { animation-delay: .45s; }
+  .a-wiggle    .doge { animation: wiggle .8s ease-in-out infinite; }
+  .a-jello     .doge { animation: jello 1.2s ease-in-out infinite; }
+  .a-flash     .doge { animation: flash 1.5s ease-in-out infinite; }
+  .a-heartbeat .doge { animation: heartbeat 1.3s ease-in-out infinite; }
+  .a-tada      .doge { animation: tada 2s ease-in-out infinite; }
+  .a-wobble    .doge { animation: wobble 1.6s ease-in-out infinite; }
+  .a-roll .stage { overflow: hidden; }
+  .a-roll      .doge { animation: roll 3s linear infinite; }
+  .a-rubber    .doge { animation: rubber 1.5s ease-in-out infinite; }
+  .a-swing360  .doge { transform-origin: 50% -46px; animation: spin 3s linear infinite; }
+  .a-crazy     .doge { animation: crazy 2s cubic-bezier(.68,-.55,.265,1.55) infinite; }
+
+  @keyframes spin      { to { transform: rotate(360deg); } }
+  @keyframes bounce    { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-24px); } }
+  @keyframes swing     { 0%,100% { transform: rotate(-11deg); } 50% { transform: rotate(11deg); } }
+  @keyframes pulse     { 0%,100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+  @keyframes shake     { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px) rotate(-3deg); } 75% { transform: translateX(5px) rotate(3deg); } }
+  @keyframes fly       { 0% { transform: translate(-62px, 14px) rotate(-8deg); } 50% { transform: translate(62px, -16px) rotate(8deg); } 100% { transform: translate(-62px, 14px) rotate(-8deg); } }
+  @keyframes zoom      { 0%,100% { transform: scale(.82); } 50% { transform: scale(1.22); } }
+  @keyframes rainbow   { 0% { filter: hue-rotate(0) drop-shadow(0 6px 10px rgba(31,41,55,.18)); } 100% { filter: hue-rotate(360deg) drop-shadow(0 6px 10px rgba(31,41,55,.18)); } }
+  @keyframes flip      { 0%,100% { transform: rotateY(0); } 50% { transform: rotateY(180deg); } }
+  @keyframes wave      { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+  @keyframes wiggle    { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+  @keyframes jello     { 0%,100% { transform: skew(0,0); } 30% { transform: skew(22deg,9deg); } 45% { transform: skew(-17deg,-7deg); } 60% { transform: skew(12deg,5deg); } 75% { transform: skew(-6deg,-2deg); } }
+  @keyframes flash     { 0%,50%,100% { opacity: 1; } 25%,75% { opacity: .28; } }
+  @keyframes heartbeat { 0%,100% { transform: scale(1); } 14% { transform: scale(1.18); } 28% { transform: scale(1); } 42% { transform: scale(1.18); } 70% { transform: scale(1); } }
+  @keyframes tada      { 0% { transform: scale(1) rotate(0); } 10%,20% { transform: scale(.94) rotate(-3deg); } 30%,50%,70%,90% { transform: scale(1.06) rotate(3deg); } 40%,60%,80% { transform: scale(1.06) rotate(-3deg); } 100% { transform: scale(1) rotate(0); } }
+  @keyframes wobble    { 0%,100% { transform: translateX(0); } 15% { transform: translateX(-19px) rotate(-4deg); } 30% { transform: translateX(15px) rotate(3deg); } 45% { transform: translateX(-11px) rotate(-2deg); } 60% { transform: translateX(7px) rotate(1.5deg); } 75% { transform: translateX(-3px); } }
+  @keyframes roll      { 0% { transform: translateX(-72px) rotate(-360deg); } 100% { transform: translateX(72px) rotate(360deg); } }
+  @keyframes rubber    { 0%,100% { transform: scale(1,1); } 30% { transform: scale(1.24,.76); } 40% { transform: scale(.76,1.24); } 50% { transform: scale(1.14,.86); } 65% { transform: scale(.95,1.05); } 75% { transform: scale(1.05,.95); } }
+  @keyframes crazy     { 0%,100% { transform: translate(0,0) rotate(0) scale(1); } 25% { transform: translate(-22px,-22px) rotate(90deg) scale(1.16); } 50% { transform: translate(22px,22px) rotate(180deg) scale(.84); } 75% { transform: translate(-22px,22px) rotate(270deg) scale(1.08); } }
+
+  body.paused .doge { animation-play-state: paused !important; }
+  body.fast .doge { animation-duration: .55s !important; }
+
+  /* Toast */
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px);
+    background: #1f2937; color: #fff; font-size: 12.5px;
+    padding: 9px 17px; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 99;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 720px) {
+    .toolbar { padding: 9px 12px; gap: 9px; }
+    .wrap { padding: 12px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .card { height: 174px; }
+  }
+
+  /* 嵌在主面板 iframe 里时：标题栏已由外层提供，这里压缩掉重复信息 */
+  body.embedded .toolbar { padding: 7px 14px; }
+  body.embedded .tb-title { display: none; }
+  body.embedded .tb-sep { display: none; }
+  body.embedded .wrap { padding: 14px 16px 22px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="tb-title">
+    <b>Doge</b>
+    <span>贴纸 · 动作</span>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-group">
+    <button class="btn on" id="btn-play" onclick="togglePlay()">⏸ 暂停</button>
+    <button class="btn" onclick="randomize()">🎲 随机</button>
+    <button class="btn" onclick="resetAll()">↺ 重置</button>
+    <button class="btn" id="btn-fast" onclick="toggleFast()">⚡ 加速</button>
+  </div>
+  <div class="tb-right">
+    <span class="hint" id="hint">双击贴纸 → 设为 App 吉祥物</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="section-head">
+    <h2>原型立绘</h2>
+    <em>Kabosu（2005–2024）</em>
+  </div>
+  <div class="heroes" id="heroes"></div>
+
+  <div class="section-head">
+    <h2>贴纸墙</h2>
+    <span class="count" id="sticker-count">0</span>
+    <em>点击选中后，点下方任意动画卡片应用</em>
+  </div>
+  <div class="sticker-wall" id="wall"></div>
+
+  <div class="section-head">
+    <h2>状态脸</h2>
+    <span class="count" id="mood-count">0</span>
+    <em>App 里加载 / 测试 / 成功 / 失败 / 登录 时蹦的就是这些脸，点一下可设为吉祥物</em>
+  </div>
+  <div class="moods" id="moods"></div>
+
+  <div class="section-head">
+    <h2>动画看板</h2>
+    <span class="count">20</span>
+    <em>全部循环播放 · 悬停可放大</em>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const STICKERS = /*__STICKERS__*/[];
+const HEROES = /*__HEROES__*/[];
+const ICONMEME = /*__ICONMEME__*/[];
+// 默认立绘要带透明通道（照片版带着背景，放卡片里很难看）
+const HERO = HEROES.includes('doge-hd.webp')
+  ? 'doge-hd.webp'
+  : (HEROES.find(h => /transparent|flip|hd/.test(h)) || HEROES[0] || '');
+
+const ANIMS = [
+  ['spin', '旋转'], ['bounce', '弹跳'], ['swing', '摇摆'], ['pulse', '脉冲'],
+  ['shake', '抖动'], ['fly', '飞行'], ['zoom', '缩放'], ['rainbow', '彩虹'],
+  ['flip', '3D 翻转'], ['wave', '波浪'], ['wiggle', '扭动'], ['jello', '果冻'],
+  ['flash', '闪烁'], ['heartbeat', '心跳'], ['tada', '庆祝'], ['wobble', '摇晃'],
+  ['roll', '翻滚'], ['rubber', '橡皮筋'], ['swing360', '360 摇摆'], ['crazy', '疯狂']
+];
+
+const IMG_BASE = '/static/doge/img/';
+const ST_BASE = '/static/doge/stickers/';
+let selected = null;
+
+function applyTheme(theme) {
+  const allowed = ['github', 'dark', 'light', 'nord'];
+  document.documentElement.dataset.theme = allowed.includes(theme) ? theme : 'github';
+}
+try { applyTheme(localStorage.getItem('egg-harvester-theme') || 'github'); } catch (_) {}
+window.addEventListener('message', event => {
+  if (event.origin === location.origin && event.data?.type === 'egg-harvester-theme') applyTheme(event.data.theme);
+});
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 1600);
+}
+
+// ---- 与主界面吉祥物打通（同源 iframe） ----
+function parentMascot() {
+  try {
+    if (window.parent && window.parent !== window && window.parent.DogeMascot) return window.parent.DogeMascot;
+  } catch (e) {}
+  return null;
+}
+
+function applyMascot(i) {
+  const host = parentMascot();
+  const path = ST_BASE + STICKERS[i];
+  if (host) {
+    // 已经是吉祥物 → 再双击取消（回到 App 图标）
+    host.setSticker(host.sticker === path ? host.DEFAULT_IMG : path);
+    markMascot();
+    toast(host.sticker === path ? '已设为 App 吉祥物' : '已恢复默认头像');
+  } else {
+    pick(i);
+    toast('已选中第 ' + (i + 1) + ' 张（主界面里双击可设为吉祥物）');
+  }
+}
+
+function markMascot() {
+  const host = parentMascot();
+  const cur = host ? host.sticker : '';
+  document.querySelectorAll('.sticker').forEach(el => {
+    const p = el.dataset.custom !== undefined
+      ? ICONMEME[parseInt(el.dataset.custom, 10)]?.url
+      : ST_BASE + STICKERS[parseInt(el.dataset.i, 10)];
+    el.classList.toggle('is-mascot', !!cur && p === cur);
+  });
+  document.querySelectorAll('.card').forEach(el => {
+    el.classList.toggle('is-mascot-anim', !!host && host.anim === el.dataset.cls);
+  });
+  document.querySelectorAll('.mood').forEach(el => {
+    el.classList.toggle('is-mascot', !!cur && ('/static/doge/stickers/' + el.dataset.file + '.webp') === cur);
+  });
+}
+
+// 状态脸对照表：直接读主界面的 DOGE_FACES，保证两边永远一致
+const MOOD_LABEL = {
+  loading: '加载中', testing: '测试中', checking: '检查中', success: '成功', ok: '正常',
+  valid: '鸡蛋有效', invalid: '鸡蛋无效', fail: '失败', error: '出错', warning: '提醒',
+  copy: '已复制', saved: '已保存', added: '已入库', harvest: '收割中', delete: '删除确认',
+  deleted: '已删除', loginfail: '登录失败', logindone: '登录成功', money: '额度', boost: '加速',
+  allpass: '全部通过', empty: '空状态', search: '没搜到', read: 'AI 阅读', send: '发送',
+  cool: '酷', welcome: '欢迎', wait: '排队中',
+};
+
+function renderMoods() {
+  const host = document.getElementById('moods');
+  const faces = (window.parent && window.parent.DOGE_FACES) || {};
+  const keys = Object.keys(faces);
+  if (!host) return;
+  if (!keys.length) { host.innerHTML = '<div class="hint">在主界面里打开本页才能看到状态脸</div>'; return; }
+  document.getElementById('mood-count').textContent = keys.length;
+  host.innerHTML = keys.map(k => {
+    const f = faces[k][0];
+    return `<div class="mood" data-mood="${k}" data-file="${f}">
+      <img src="/static/doge/stickers/${f}.webp" alt="">
+      <div><div class="m1">${MOOD_LABEL[k] || k}</div><div class="m2">${k}</div></div>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('.mood').forEach(el => {
+    el.addEventListener('click', () => {
+      const host2 = parentMascot();
+      const path = '/static/doge/stickers/' + el.dataset.file + '.webp';
+      if (host2) { host2.setSticker(path); markMascot(); }
+      else toast('已选中 ' + el.dataset.mood);
+    });
+  });
+  markMascot();
+}
+
+function renderHeroes() {
+  const box = document.getElementById('heroes');
+  const meta = {
+    'doge-hd': ['经典 Doge', '最常用的表情底图'],
+    'doge-transparent': ['透明立绘', '去底 PNG 变体'],
+    'doge-flip-hd': ['高清翻面', '对称翻转变体'],
+    'doge-classic': ['原版照片', 'MSNBC 原始来源图'],
+    'doge-meme-text': ['Meme 文字版', 'much wow 排版样例'],
+    'doge-flip': ['翻面', '轻量版本']
+  };
+  if (!HEROES.length) return;
+  box.innerHTML = HEROES.map(name => {
+    const key = name.replace('.webp', '');
+    const m = meta[key] || [key, 'Doge 素材'];
+    return `<div class="hero">
+      <div class="thumb"><img src="${IMG_BASE}${name}" alt="${m[0]}" loading="lazy"></div>
+      <div class="meta"><b>${m[0]}</b><span>${m[1]}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderWall() {
+  const wall = document.getElementById('wall');
+  document.getElementById('sticker-count').textContent = STICKERS.length + ICONMEME.length;
+  wall.innerHTML = STICKERS.map((f, i) =>
+    `<div class="sticker" data-i="${i}" title="${f}">
+       <img src="${ST_BASE}${f}" alt="sticker ${i + 1}" loading="lazy">
+     </div>`
+  ).join('') + ICONMEME.map((item, i) =>
+    `<div class="sticker" data-custom="${i}" title="${item.name}">
+       <img src="${item.url}" alt="${item.name}" loading="lazy">
+     </div>`
+  ).join('');
+  wall.querySelectorAll('.sticker').forEach(el => {
+    const path = el.dataset.custom !== undefined
+      ? ICONMEME[parseInt(el.dataset.custom, 10)].url
+      : ST_BASE + STICKERS[parseInt(el.dataset.i, 10)];
+    el.addEventListener('click', () => pickPath(path, el));
+    el.addEventListener('dblclick', () => {
+      const host = parentMascot();
+      if (host) { host.setSticker(host.sticker === path ? host.DEFAULT_IMG : path); markMascot(); }
+    });
+  });
+  markMascot();
+}
+
+function pick(i) {
+  pickPath(ST_BASE + STICKERS[i]);
+}
+
+function pickPath(path, selectedEl) {
+  if (selectedEl) document.querySelectorAll('.sticker').forEach(el => el.classList.toggle('sel', el === selectedEl));
+  if (selected === path) {          // 再点一次取消，避免误替换
+    selected = null;
+    document.querySelectorAll('.sticker').forEach(el => el.classList.remove('sel'));
+    toast('已取消选中');
+    return;
+  }
+  selected = path;
+  toast('已选中第 ' + (i + 1) + ' 张贴纸 · 点卡片应用');
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = ANIMS.map(([cls, label], i) => {
+    const inner = cls === 'wave'
+      ? Array.from({ length: 4 }, () => `<img class="doge" src="${IMG_BASE}${HERO}" alt="wave">`).join('')
+      : `<img class="doge" src="${IMG_BASE}${HERO}" alt="${cls}">`;
+    return `<div class="card a-${cls}" data-cls="${cls}">
+      <div class="stage">${inner}</div>
+      <div class="cap">${label}</div>
+      <div class="idx">${String(i + 1).padStart(2, '0')}</div>
+    </div>`;
+  }).join('');
+}
+
+// 点卡片 → 应用当前选中的贴纸
+document.getElementById('grid').addEventListener('dblclick', (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const name = card.dataset.cls;
+  const host = parentMascot();
+  if (host) {
+    host.setAnim(name);
+    toast('已设为吉祥物动作：' + name);
+    markMascot();
+  } else {
+    toast('动作：' + name);
+  }
+});
+
+document.getElementById('grid').addEventListener('click', (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  if (!selected) { toast('先在上方贴纸墙选一张贴纸'); return; }
+  card.querySelectorAll('.doge').forEach(img => { img.src = selected; });
+  card.animate(
+    [{ transform: 'scale(1)' }, { transform: 'scale(1.05)' }, { transform: 'scale(1)' }],
+    { duration: 240, easing: 'ease-out' }
+  );
+});
+
+function togglePlay() {
+  const paused = document.body.classList.toggle('paused');
+  const btn = document.getElementById('btn-play');
+  btn.textContent = paused ? '▶ 播放' : '⏸ 暂停';
+  btn.classList.toggle('on', !paused);
+}
+
+function toggleFast() {
+  const fast = document.body.classList.toggle('fast');
+  const btn = document.getElementById('btn-fast');
+  btn.classList.toggle('on', fast);
+  btn.textContent = fast ? '⚡ 加速中' : '⚡ 加速';
+}
+
+function randomize() {
+  document.querySelectorAll('.card .doge').forEach(img => {
+    img.src = ST_BASE + STICKERS[Math.floor(Math.random() * STICKERS.length)];
+  });
+  toast('已随机替换全部卡片');
+}
+
+function resetAll() {
+  document.querySelectorAll('.card .doge').forEach(img => { img.src = IMG_BASE + HERO; });
+  selected = null;
+  document.querySelectorAll('.sticker').forEach(el => el.classList.remove('sel'));
+  toast('已恢复默认立绘');
+}
+
+renderHeroes();
+renderMoods();
+renderWall();
+renderGrid();
+setTimeout(markMascot, 300);   // 等父窗口吉祥物状态就绪后打标记
+
+// 被主面板 iframe 嵌入时，收掉重复的标题栏
+if (window.self !== window.top) document.body.classList.add('embedded');
+</script>
+</body>
+</html>

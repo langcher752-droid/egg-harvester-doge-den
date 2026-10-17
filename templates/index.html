@@ -2188,7 +2188,9 @@
             <button class="btn-ghost" onclick="resetDogeAll()">恢复出厂设置</button>
           </div>
            <em style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:12px;">为 28 个状态表情选择喜欢的贴纸，点击表情即可换脸</em>
-           <div class="custom-doge"><input class="search-input" id="custom-doge-url" placeholder="粘贴已有贴纸路径，如 /static/doge/stickers/25_ai_cute_puppy.webp"><button class="btn-ghost" onclick="addCustomDoge()">添加自定义狗狗</button></div>
+           <div class="custom-doge"><input type="file" id="iconmeme-file" accept="image/png,image/jpeg,image/gif,image/webp" class="search-input"><input class="search-input" id="iconmeme-name" placeholder="图标名称（可选）"><button class="btn-ghost" onclick="uploadIconMeme()">添加到 iconmeme 库</button></div>
+           <div id="iconmeme-list" class="custom-doge-list"><span class="empty-sub">正在加载 iconmeme 库…</span></div>
+           <div class="custom-doge"><input class="search-input" id="custom-doge-url" placeholder="兼容：粘贴已有贴纸路径，如 /static/doge/stickers/25_ai_cute_puppy.webp"><button class="btn-ghost" onclick="addCustomDoge()">添加已有素材映射</button></div>
            <div id="custom-doge-list" class="custom-doge-list"></div>
            <div id="doge-settings-table" style="margin:12px 0; max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:8px;"></div>
         </div>
@@ -2412,6 +2414,8 @@
     try { localStorage.setItem('egg-harvester-theme', value); } catch (e) {}
     const select = document.getElementById('theme-select');
     if (select) select.value = value;
+    const dogeFrame = document.getElementById('doge-frame');
+    if (dogeFrame?.contentWindow) dogeFrame.contentWindow.postMessage({type: 'egg-harvester-theme', theme: value}, location.origin);
     recordOperation('info', '界面皮肤已切换为 ' + value);
   }
 
@@ -2441,7 +2445,12 @@
 
   function openOperationDrawer() { document.getElementById('operation-drawer').classList.add('open'); document.getElementById('drawer-overlay').style.display = 'block'; renderOperationLog(); }
   function closeOperationDrawer() { document.getElementById('operation-drawer').classList.remove('open'); document.getElementById('drawer-overlay').style.display = 'none'; }
-  function clearOperationLog() { operationLog.length = 0; recordOperation('info', '操作日志已清空'); }
+  function clearOperationLog() {
+    operationLog.length = 0;
+    const count = document.getElementById('operation-count');
+    if (count) count.textContent = '0';
+    renderOperationLog();
+  }
 
   // 页面加载入口
   window.addEventListener('DOMContentLoaded', () => {
@@ -2669,13 +2678,21 @@
     wait:      ['05_pngall_bread',              'swing'],   // 面包狗：排队
   };
 
+  let dogeCustom = (() => { try { return JSON.parse(localStorage.getItem('doge-custom') || '{}'); } catch (_) { return {}; } })();
+  let iconmemeLibrary = [];
+
+  function dogeAssetUrl(value) {
+    if (!value) return '';
+    return String(value).startsWith('/') ? String(value) : `/static/doge/stickers/${value}.webp`;
+  }
+
   const DogeUI = {
     base: '/static/doge/stickers/',
 
     // 取某表情的图片路径
     path(mood) {
       const f = DOGE_FACES[mood] || DOGE_FACES.ok;
-      return this.base + f[0] + '.webp';
+      return dogeAssetUrl(dogeCustom[mood] || f[0]);
     },
     anim(mood) {
       const f = DOGE_FACES[mood] || DOGE_FACES.ok;
@@ -2768,7 +2785,12 @@
       this.sticker = localStorage.getItem(this.SK) || '';
       this.anim = localStorage.getItem(this.AK) || 'bounce';
       this.apply();
-      fetch('/doge/manifest').then(r => r.json()).then(m => { this.manifest = m; }).catch(() => {});
+      fetch('/doge/manifest').then(r => r.json()).then(m => {
+        this.manifest = m;
+        iconmemeLibrary = m.iconmeme || [];
+        renderIconMemeList();
+        renderDogeSettings();
+      }).catch(() => {});
     },
 
     // 当前头像图（没挑过就用 App 图标）
@@ -2807,7 +2829,9 @@
     },
 
     randomSticker() {
-      const list = (this.manifest && this.manifest.stickers) || [];
+      const builtins = (this.manifest && this.manifest.stickers) || [];
+      const custom = (this.manifest && this.manifest.iconmeme || []).map(item => item.url);
+      const list = [...builtins, ...custom];
       if (!list.length) return;
       const pick = list[Math.floor(Math.random() * list.length)];
       this.setSticker(pick);
@@ -2863,14 +2887,6 @@
     recordOperation(bad ? 'bad' : (/成功|完成|已保存|已复制|已删除|已切换/.test(text) ? 'ok' : 'info'), text);
     if (window.DogeUI) DogeUI.pop(mood || DogeUI.guess(msg), msg);
   }
-
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('button');
-    if (button && button.id !== 'operation-count') {
-      const label = button.getAttribute('aria-label') || button.textContent.replace(/\s+/g, ' ').trim();
-      if (label) recordOperation('info', '点击：' + label.slice(0, 100));
-    }
-  }, true);
 
   function esc(s) {
     return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3261,7 +3277,8 @@
 
     for (const cb of checkboxes) {
       const keyId = cb.dataset.keyId;
-      const providerName = customProviderName || cb.dataset.provider;
+      const baseProviderName = customProviderName || cb.dataset.provider;
+      const providerName = mergeStrategy ? baseProviderName : `${baseProviderName}-${keyId}`;
       
       try {
         const fd = new FormData();
@@ -5321,6 +5338,7 @@
     });
     initMarkdown();
     DogeMascot.init();
+    loadIconMemeLibrary();
 
     // 页面加载后30秒检查一次新群
     setTimeout(checkNewGroups, 30000);
@@ -5328,11 +5346,9 @@
 
   // ==== Doge 个性化 / 名言 / 动画增强 ====
   // Doge 个性化：mood -> sticker 映射的自定义编辑
-  let dogeCustom = JSON.parse(localStorage.getItem('doge-custom') || '{}');
-  
   function getDogeFace(mood, size = 'md') {
     const custom = dogeCustom[mood];
-    if (custom) return `<img src="/static/doge/stickers/${custom}.webp" alt="${mood}" class="doge-face ${size}" title="${mood}">`;
+    if (custom) return `<img src="${esc(dogeAssetUrl(custom))}" alt="${mood}" class="doge-face ${size}" title="${mood}">`;
     return DogeUI.face(mood, size);
   }
 
@@ -5361,8 +5377,8 @@
       const isCustom = !!custom;
       return `<tr class="fade-in" style="animation-delay: ${i * 0.02}s;">
         <td style="padding:8px;font-weight:500;color:var(--text-primary);">${mood}</td>
-        <td style="padding:8px;"><img src="/static/doge/stickers/${current}.webp" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:var(--bg-hover);padding:4px;"></td>
-        <td style="padding:8px;font-size:11px;color:var(--text-secondary);">${file}</td>
+        <td style="padding:8px;"><img src="${esc(dogeAssetUrl(current))}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:var(--bg-hover);padding:4px;"></td>
+        <td style="padding:8px;font-size:11px;color:var(--text-secondary);">${esc(file)}</td>
         <td style="padding:8px;text-align:right;">
           <button class="btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="switchDogeSticker('${mood}')">换脸...</button> 
           ${isCustom ? `<button class="btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--accent-orange);" onclick="restoreDogeFace('${mood}')">恢复</button>` : ''}
@@ -5385,7 +5401,10 @@
     if (!files) return;
     const cur = dogeCustom[mood] || files[0];
     // 简单实现：列出所有可用贴纸让用户选
-    const allStickers = [...new Set(Object.values(window.DOGE_FACES).map(f => f[0]))];
+    const allStickers = [...new Set([
+      ...Object.values(window.DOGE_FACES).map(f => ({ url: dogeAssetUrl(f[0]), label: f[0] })),
+      ...iconmemeLibrary.map(item => ({ url: item.url, label: item.name }))
+    ])];
     const modal = document.createElement('div');
     modal.className = 'modal-backdrop';
     modal.innerHTML = `<div class="modal-box" style="width:90vw;max-width:800px;">
@@ -5394,9 +5413,9 @@
         <button class="btn-close" onclick="this.closest('.modal-backdrop').remove()">✕</button>
       </div>
       <div class="modal-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;padding:20px;">
-        ${allStickers.map(f => `<div style="cursor:pointer;padding:8px;border:2px solid ${cur===f?'var(--accent-green)':'var(--border)'};border-radius:8px;text-align:center;" onclick="saveDogeFace('${mood}','${f}');this.closest('.modal-backdrop').remove();">
-          <img src="/static/doge/stickers/${f}.webp" alt="" style="width:64px;height:64px;object-fit:contain;margin-bottom:4px;">
-          <div style="font-size:11px;color:var(--ink-3);">${f}</div>
+        ${allStickers.map(f => `<div style="cursor:pointer;padding:8px;border:2px solid ${cur===f.url?'var(--accent-green)':'var(--border)'};border-radius:8px;text-align:center;" onclick="saveDogeFace('${mood}',decodeURIComponent('${encodeURIComponent(f.url)}'));this.closest('.modal-backdrop').remove();">
+          <img src="${esc(f.url)}" alt="" style="width:64px;height:64px;object-fit:contain;margin-bottom:4px;">
+          <div style="font-size:11px;color:var(--ink-3);">${esc(f.label)}</div>
         </div>`).join('')}
       </div>
     </div>`;
@@ -5421,6 +5440,66 @@
     const items = customDogeList(); if (!items.includes(src)) items.push(src); localStorage.setItem('doge-extra', JSON.stringify(items)); input.value = ''; renderCustomDogeList(); toast('已添加自定义狗狗');
   }
   function removeCustomDoge(i) { const items = customDogeList(); items.splice(i, 1); localStorage.setItem('doge-extra', JSON.stringify(items)); renderCustomDogeList(); toast('已删除自定义映射'); }
+
+  function renderIconMemeList() {
+    const el = document.getElementById('iconmeme-list'); if (!el) return;
+    if (!iconmemeLibrary.length) { el.innerHTML = '<span class="empty-sub">iconmeme 库为空；上传第一张图片。</span>'; return; }
+    el.innerHTML = iconmemeLibrary.map(item => `<span class="custom-doge-item">
+      <img src="${esc(item.url)}" alt="${esc(item.name)}" title="${esc(item.name)}">
+      <span>${esc(item.name)}</span>
+      <button class="btn-ghost" style="padding:2px 6px" onclick="DogeMascot.setSticker(decodeURIComponent('${encodeURIComponent(item.url)}'))">设为吉祥物</button>
+      <button class="btn-ghost" style="padding:2px 6px" onclick="deleteIconMeme('${item.id}')">删除</button>
+    </span>`).join('');
+  }
+
+  async function loadIconMemeLibrary() {
+    try {
+      const response = await fetch('/iconmeme');
+      const data = await response.json();
+      iconmemeLibrary = data.items || [];
+      renderIconMemeList();
+      renderDogeSettings();
+    } catch (error) {
+      const el = document.getElementById('iconmeme-list');
+      if (el) el.innerHTML = `<span class="empty-sub">iconmeme 加载失败：${esc(error.message)}</span>`;
+    }
+  }
+
+  async function uploadIconMeme() {
+    const input = document.getElementById('iconmeme-file');
+    const file = input?.files?.[0];
+    if (!file) { toast('请先选择图片'); return; }
+    const form = new FormData();
+    form.append('file', file);
+    form.append('name', document.getElementById('iconmeme-name')?.value || '');
+    try {
+      const response = await fetch('/iconmeme', { method: 'POST', body: form });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.detail || data.error || '上传失败');
+      iconmemeLibrary.unshift(data.item);
+      renderIconMemeList();
+      renderDogeSettings();
+      input.value = '';
+      document.getElementById('iconmeme-name').value = '';
+      toast('已添加到 iconmeme 库');
+    } catch (error) { toast('iconmeme 上传失败：' + error.message, 'fail'); }
+  }
+
+  async function deleteIconMeme(id) {
+    const item = iconmemeLibrary.find(candidate => candidate.id === id);
+    if (!item || !confirm(`删除「${item.name}」？`)) return;
+    try {
+      const response = await fetch('/iconmeme/' + encodeURIComponent(id), { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.detail || '删除失败');
+      iconmemeLibrary = iconmemeLibrary.filter(candidate => candidate.id !== id);
+      if (DogeMascot.sticker === item.url) DogeMascot.reset();
+      Object.keys(dogeCustom).forEach(mood => { if (dogeCustom[mood] === item.url) delete dogeCustom[mood]; });
+      localStorage.setItem('doge-custom', JSON.stringify(dogeCustom));
+      renderIconMemeList(); renderDogeSettings();
+      toast('iconmeme 已删除');
+    } catch (error) { toast('iconmeme 删除失败：' + error.message, 'fail'); }
+  }
 
   function openIntelStation() {
     window.open('https://www.mjjgo.com', '_blank', 'noopener,noreferrer');

@@ -10,8 +10,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
 import yaml
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "eggs.db")
+from config import DB_PATH
 
 
 def get_conn():
@@ -191,7 +190,9 @@ _DshLoader.add_multi_constructor("!js", lambda loader, suffix, node: None)
 
 def _safe_provider_name(name: str) -> str:
     value = re.sub(r"[^A-Za-z0-9_.-]+", "_", (name or "custom").strip()).strip("._-")
-    return value or "custom"
+    if not value or value.lower() in {"true", "false", "null", "yes", "no", "on", "off"} or re.fullmatch(r"[-+]?\d+(\.\d+)?", value):
+        return "provider_" + (value or "custom")
+    return value
 
 
 def _credential_ref(name: str) -> str:
@@ -243,7 +244,12 @@ def _patch_provider_text(text: str, name: str, base_url: str, ref: str, models: 
              "        apiKeyEnv: {}\n"
              "        api: openai-completions\n"
              "        baseURL: {}\n"
-             "        models:\n{}".format(name, ref, base_url, model_lines))
+             "        models:\n{}".format(
+                 name,
+                 json.dumps(ref, ensure_ascii=False),
+                 json.dumps(base_url, ensure_ascii=False),
+                 model_lines,
+             ))
     if block_start is not None:
         lines[block_start:block_end] = [block]
         return "".join(lines), "updated"

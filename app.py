@@ -15,6 +15,7 @@ import json
 import os
 import re
 import subprocess
+import uuid
 
 from fastapi import FastAPI, UploadFile, File, Form, Body, BackgroundTasks, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
@@ -22,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from extract import extract_from_image
 from pipeline import process_text
-from db import list_keys
+from db import list_keys, list_iconmemes, create_iconmeme, delete_iconmeme
 from summarize import summarize
 import store
 import qq_ingest
@@ -212,6 +213,22 @@ async def intel_page():
 
 
 DOGE_STATIC_DIR = os.path.join(static_dir, "doge")
+ICONMEME_DIR = os.path.join(static_dir, "iconmeme")
+ICONMEME_MAX_BYTES = 5 * 1024 * 1024
+ICONMEME_SIGNATURES = (
+    (b"\x89PNG\r\n\x1a\n", "image/png", ".png"),
+    (b"\xff\xd8\xff", "image/jpeg", ".jpg"),
+    (b"GIF87a", "image/gif", ".gif"),
+    (b"GIF89a", "image/gif", ".gif"),
+)
+
+
+def _iconmeme_items():
+    return [
+        {"id": row[0], "name": row[1], "url": f"/static/iconmeme/{row[2]}",
+         "mime_type": row[3], "size_bytes": row[4], "created_at": row[5]}
+        for row in list_iconmemes()
+    ]
 
 
 def _doge_listing(sub, exts):
@@ -227,7 +244,64 @@ async def doge_manifest():
     return {
         "stickers": [f"/static/doge/stickers/{n}" for n in _doge_listing("stickers", (".webp", ".png"))],
         "heroes": [f"/static/doge/img/{n}" for n in _doge_listing("img", (".webp", ".png"))],
+        "iconmeme": _iconmeme_items(),
     }
+
+
+@app.get("/iconmeme")
+async def iconmeme_list():
+    return {"items": _iconmeme_items()}
+
+
+@app.post("/iconmeme")
+async def iconmeme_upload(file: UploadFile = File(...), name: str = Form("")):
+    data = await file.read(ICONMEME_MAX_BYTES + 1)
+    if not data:
+        raise HTTPException(400, "图标文件为空")
+    if len(data) > ICONMEME_MAX_BYTES:
+        raise HTTPException(413, "图标文件不能超过 5MB")
+    match = next((item for item in ICONMEME_SIGNATURES if data.startswith(item[0])), None)
+    if not match:
+        # WebP 需要同时校验 RIFF/WEBP，避免仅凭扩展名接收任意文件。
+        if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            mime_type, extension = "image/webp", ".webp"
+        else:
+            raise HTTPException(415, "只支持 PNG、JPEG、GIF 或 WebP 图片")
+    else:
+        _, mime_type, extension = match
+    display_name = re.sub(r"\s+", " ", (name or "").strip())[:80]
+    if not display_name:
+        display_name = os.path.splitext(os.path.basename(file.filename or "我的 iconmeme"))[0][:80] or "我的 iconmeme"
+    item_id = uuid.uuid4().hex
+    filename = item_id + extension
+    os.makedirs(ICONMEME_DIR, exist_ok=True)
+    target = os.path.join(ICONMEME_DIR, filename)
+    with open(target, "xb") as handle:
+        handle.write(data)
+    try:
+        create_iconmeme(item_id, display_name, filename, mime_type, len(data))
+    except Exception:
+        try:
+            os.unlink(target)
+        except FileNotFoundError:
+            pass
+        raise
+    item = next(item for item in _iconmeme_items() if item["id"] == item_id)
+    return {"ok": True, "item": item}
+
+
+@app.delete("/iconmeme/{item_id}")
+async def iconmeme_delete(item_id: str):
+    filename = delete_iconmeme(item_id)
+    if not filename:
+        raise HTTPException(404, "iconmeme 不存在")
+    path = os.path.realpath(os.path.join(ICONMEME_DIR, filename))
+    if path.startswith(os.path.realpath(ICONMEME_DIR) + os.sep):
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    return {"ok": True, "id": item_id}
 
 
 @app.get("/doge", response_class=HTMLResponse)
@@ -243,9 +317,11 @@ async def doge_page():
 
     stickers = _doge_listing("stickers", (".webp", ".png"))
     heroes = _doge_listing("img", (".webp", ".png"))
+    iconmeme = _iconmeme_items()
 
     html = html.replace("/*__STICKERS__*/[]", json.dumps(stickers, ensure_ascii=False))
     html = html.replace("/*__HEROES__*/[]", json.dumps(heroes, ensure_ascii=False))
+    html = html.replace("/*__ICONMEME__*/[]", json.dumps(iconmeme, ensure_ascii=False))
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
@@ -1230,7 +1306,12 @@ async def import_key_to_dsh(
     provider_name: str = Form("custom"),
     selected_models: str = Form(""),
 ):
-    """导入API key到 ~/.dsh/keys.json
+    """导入 API key 到 DSH Desktop profile。
+
+    实际写入 ~/.dsh/profiles/desktop/cordis.patch.yml，并将密钥放入
+    ~/.dsh/.credentials.yaml 的 refs，通过 apiKeyEnv 关联；不会写入旧的
+    ~/.dsh/keys.json，也不会把明文 key 写入 patch 文件。
+
     - key_id: 本地数据库中的key ID
     - provider_name: 自定义provider名称
     - selected_models: 逗号分隔的模型列表
