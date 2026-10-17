@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="github">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1768,8 +1768,31 @@
     .custom-doge input { flex:1 1 260px; min-width:180px; }
     .custom-doge-list { display:flex; gap:8px; flex-wrap:wrap; }
     .custom-doge-item { display:inline-flex; gap:6px; align-items:center; padding:4px 7px; border:1px solid var(--line); border-radius:8px; background:#fbfcfe; font-size:11px; }
-    .custom-doge-item img { width:24px; height:24px; object-fit:contain; }
-    @media (max-width: 860px) { #sidebar { width:196px; } .keys-grid { grid-template-columns:1fr; } .ai-entry { width:100%; margin-left:0; } .ai-entry input { width:100%; flex:1; } .stream-head { align-items:flex-start; } .provider-row { grid-template-columns:18px 70px minmax(0,1fr); } .provider-api, .provider-end { grid-column:2/-1; justify-content:flex-start; } }
+     .custom-doge-item img { width:24px; height:24px; object-fit:contain; }
+     /* 用户可持久化的四套工作台皮肤；Doge 与 icon 资源保持不变。 */
+     html[data-theme="dark"] { color-scheme: dark; }
+     html[data-theme="dark"] body { --bg-base:#111827; --bg-surface:#1f2937; --bg-surface-hover:#273449; --bg-surface-active:#233b5d; --border:#374151; --border-subtle:#334155; --text-primary:#f3f4f6; --text-secondary:#cbd5e1; --text-muted:#94a3b8; --line:#374151; --line-2:#334155; --ink-1:#f3f4f6; --ink-2:#cbd5e1; --ink-3:#94a3b8; --icon:#cbd5e1; }
+     html[data-theme="dark"] .key-field, html[data-theme="dark"] .stat-pill, html[data-theme="dark"] .btn-action, html[data-theme="dark"] .btn-icon, html[data-theme="dark"] .btn-ghost, html[data-theme="dark"] th { background:#273449; color:var(--text-primary); }
+     html[data-theme="dark"] .key-field-text, html[data-theme="dark"] .msg-bubble-content, html[data-theme="dark"] .markdown-content, html[data-theme="dark"] .file-info .name { color:var(--text-primary); }
+     html[data-theme="dark"] .table-card, html[data-theme="dark"] .provider-row, html[data-theme="dark"] .doge-pop, html[data-theme="dark"] #operation-drawer { background:var(--bg-surface); }
+     html[data-theme="dark"] .operation-item { background:#273449; }
+     html[data-theme="light"] body { color-scheme: light; --bg-base:#f8fafc; --bg-surface:#ffffff; --bg-surface-hover:#f1f5f9; --bg-surface-active:#e8f0ff; --border:#d8dee8; --border-subtle:#e9edf3; --text-primary:#172033; --text-secondary:#516070; --text-muted:#8793a3; --line:#e2e8f0; --line-2:#edf2f7; }
+     html[data-theme="nord"] body { --bg-base:#e5e9f0; --bg-surface:#eceff4; --bg-surface-hover:#e5e9f0; --bg-surface-active:#d8dee9; --border:#c5ccd8; --border-subtle:#d8dee9; --text-primary:#2e3440; --text-secondary:#4c566a; --text-muted:#7b88a1; --line:#c5ccd8; --line-2:#d8dee9; --accent-blue:#5e81ac; --accent-green:#8fbcbb; --accent-red:#bf616a; --accent-amber:#d08770; }
+     .batch-tools { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+     .batch-progress { display:none; flex:1 1 100%; min-width:260px; padding:9px 11px; border:1px solid var(--line); border-radius:9px; background:var(--bg-surface); color:var(--text-secondary); font-size:12px; }
+     .batch-progress.on { display:block; }
+     .batch-progress-track { height:5px; margin-top:7px; background:var(--border-subtle); border-radius:99px; overflow:hidden; }
+     .batch-progress-track > i { display:block; height:100%; width:0; background:var(--accent-blue); transition:width .18s ease; }
+     .operation-drawer { width:420px; }
+     .operation-list { display:flex; flex-direction:column; gap:8px; }
+     .operation-item { padding:9px 10px; border:1px solid var(--border-subtle); border-radius:8px; background:#f8fafc; font-size:12px; line-height:1.45; }
+     .operation-item .meta { display:flex; justify-content:space-between; gap:8px; color:var(--text-muted); font-size:10px; margin-bottom:3px; }
+     .operation-item.ok { border-left:3px solid var(--accent-green); }
+     .operation-item.bad { border-left:3px solid var(--accent-red); }
+     .operation-item.info { border-left:3px solid var(--accent-blue); }
+     .operation-empty { color:var(--text-muted); text-align:center; padding:28px 8px; font-size:12px; }
+     .batch-result { font-size:11px; color:var(--text-secondary); margin-left:auto; }
+     @media (max-width: 860px) { #sidebar { width:196px; } .keys-grid { grid-template-columns:1fr; } .ai-entry { width:100%; margin-left:0; } .ai-entry input { width:100%; flex:1; } .stream-head { align-items:flex-start; } .provider-row { grid-template-columns:18px 70px minmax(0,1fr); } .provider-api, .provider-end { grid-column:2/-1; justify-content:flex-start; } }
     @media (max-width: 620px) { body { overflow:auto; } #sidebar { width:100%; height:auto; max-height:240px; } body { display:block; } #main { min-height:calc(100vh - 240px); } .nav-list { display:flex; overflow-x:auto; gap:4px; flex:none; } .nav-item { flex:0 0 auto; } .sidebar-footer { display:none; } .topbar { padding:0 12px; } .topbar-right .stat-pill { display:none; } .view-panel { padding:12px; } .chat-pane { width:190px; flex-basis:190px; } .stream-head { padding:10px; } .stream-toolbar { padding:8px 10px; } .stream-scroll { padding:10px; } }
   </style>
 
@@ -1873,9 +1896,12 @@
           <span>撤回保命:</span>
           <span class="num" id="stat-recalled">0</span>
         </div>
-        <button class="btn-icon" onclick="refreshCurrentView()">
-          <i class="ico" style="--ico:url(/static/icons/refresh@2x.png)"></i> 刷新
-        </button>
+         <button class="btn-icon" onclick="refreshCurrentView()">
+           <i class="ico" style="--ico:url(/static/icons/refresh@2x.png)"></i> 刷新
+         </button>
+         <button class="btn-icon" onclick="openOperationDrawer()" title="查看操作中心">
+           <i class="ico" style="--ico:url(/static/icons/log@2x.png)"></i> 操作中心 <span id="operation-count" class="nav-badge">0</span>
+         </button>
       </div>
     </header>
 
@@ -1888,16 +1914,23 @@
             <input type="checkbox" id="show-full-key" onchange="loadKeys()"> 显示明文 Key
           </label>
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <button class="btn-icon" onclick="showImportToDSHDialog()" title="导出选中的Key到DSH Desktop" style="padding:6px 12px; font-size:12px;">
+         <div class="batch-tools">
+           <button class="btn-icon" id="btn-test-all-keys" onclick="testAllKeys()" title="逐个调用现有 /keys/test，不会把 Key 写入操作日志">
+             <i class="ico" style="--ico:url(/static/icons/retest@2x.png)"></i> 全部检查 / 批量重新测速
+           </button>
+           <button class="btn-icon" onclick="showImportToDSHDialog()" title="导出选中的Key到DSH Desktop" style="padding:6px 12px; font-size:12px;">
             <i class="ico" style="--ico:url(/static/icons/export@2x.png)"></i> 导入到 DSH
           </button>
           <div style="font-size:12px; color:var(--text-muted);" id="keys-stats-summary">
             加载中...
           </div>
         </div>
-      </div>
-      <div class="keys-grid" id="keys-list">
+         <div class="batch-progress" id="keys-batch-progress" aria-live="polite">
+           <div><strong id="keys-batch-label">准备检查…</strong> <span class="batch-result" id="keys-batch-result"></span></div>
+           <div class="batch-progress-track"><i id="keys-batch-bar"></i></div>
+         </div>
+       </div>
+       <div class="keys-grid" id="keys-list">
         <!-- 动态生成 -->
       </div>
     </section>
@@ -2080,7 +2113,7 @@
         <!-- LLM 配置 -->
         <div class="table-card">
           <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text-primary);">LLM 配置</h3>
-          <div style="display:flex; flex-direction:column; gap:12px;">
+           <div style="display:flex; flex-direction:column; gap:12px;">
             <div>
               <label style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">网关地址 (GATEWAY_BASE)</label>
               <input type="text" id="setting-gateway-base" class="search-input" readonly style="background:var(--bg-base);">
@@ -2096,9 +2129,22 @@
             <div>
               <label style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">QQ API地址 (NAP_HTTP_URL)</label>
               <input type="text" id="setting-nap-http-url" class="search-input" readonly style="background:var(--bg-base);">
-            </div>
-          </div>
-        </div>
+           </div>
+         </div>
+
+         </div>
+
+         <!-- UI 皮肤 -->
+         <div class="table-card">
+           <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text-primary);">界面皮肤</h3>
+           <label for="theme-select" style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">选择工作台配色（自动保存）</label>
+           <select id="theme-select" class="select-box" style="width:100%;" onchange="setTheme(this.value)">
+             <option value="github">GitHub</option>
+             <option value="dark">Dark</option>
+             <option value="light">Light</option>
+             <option value="nord">Nord</option>
+           </select>
+         </div>
 
         <!-- 数据源路径 -->
         <div class="table-card">
@@ -2117,8 +2163,8 @@
               <input type="text" id="setting-download-dir" class="search-input" placeholder="留空使用默认 media/ 目录" style="background:var(--bg-base);">
               <div style="margin-top:8px;">
                 <button class="btn-harvest-quick" style="padding:6px 14px;font-size:12px;width:auto;" onclick="saveDownloadDir()"><i class="ico" style="--ico:url(/static/icons/download@2x.png)"></i> 保存下载目录</button>
-              </div>
-            </div>
+         </div>
+       </div>
           </div>
         </div>
 
@@ -2244,6 +2290,15 @@
     </div>
   </aside>
 
+  <!-- 统一操作中心：保留按钮点击、成功、失败与网络错误详情 -->
+  <aside class="drawer operation-drawer" id="operation-drawer">
+    <div class="drawer-header">
+      <div><h3 style="font-size:14px; font-weight:600;">操作中心</h3><div style="font-size:11px;color:var(--text-muted);margin-top:3px;">最近的可见反馈与失败详情</div></div>
+      <div style="display:flex;gap:8px;align-items:center;"><button class="btn-ghost" onclick="clearOperationLog()">清空</button><span class="modal-x" onclick="closeOperationDrawer()"><i class="ico" style="--ico:url(/static/icons/close@2x.png)"></i></span></div>
+    </div>
+    <div class="drawer-body"><div id="operation-list" class="operation-list"><div class="operation-empty">暂无操作记录</div></div></div>
+  </aside>
+
   <!-- DSH导入对话框 -->
   <div id="dsh-import-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:10000; display:none; align-items:center; justify-content:center;">
     <div style="background:var(--bg-surface); border:1px solid var(--border); border-radius:12px; width:90%; max-width:600px; max-height:80vh; overflow:hidden; display:flex; flex-direction:column;">
@@ -2347,9 +2402,50 @@
   let cachedKeys = [];
   let autoRefreshInterval = null;
   let autoRefreshSeconds = 5;
+  const operationLog = [];
+  let keysBatchTesting = false;
+
+  function setTheme(theme) {
+    const allowed = ['github', 'dark', 'light', 'nord'];
+    const value = allowed.includes(theme) ? theme : 'github';
+    document.documentElement.dataset.theme = value;
+    try { localStorage.setItem('egg-harvester-theme', value); } catch (e) {}
+    const select = document.getElementById('theme-select');
+    if (select) select.value = value;
+    recordOperation('info', '界面皮肤已切换为 ' + value);
+  }
+
+  function initTheme() {
+    let value = 'github';
+    try { value = localStorage.getItem('egg-harvester-theme') || 'github'; } catch (e) {}
+    setTheme(value);
+  }
+
+  function recordOperation(type, message, detail = '') {
+    operationLog.unshift({ type, message: String(message || ''), detail: String(detail || ''), at: new Date() });
+    operationLog.splice(60);
+    const count = document.getElementById('operation-count');
+    if (count) count.textContent = operationLog.length;
+    renderOperationLog();
+  }
+
+  function renderOperationLog() {
+    const host = document.getElementById('operation-list');
+    if (!host) return;
+    if (!operationLog.length) { host.innerHTML = '<div class="operation-empty">暂无操作记录</div>'; return; }
+    host.innerHTML = operationLog.map(item => `<div class="operation-item ${esc(item.type)}">
+      <div class="meta"><span>${item.type === 'bad' ? '失败' : item.type === 'ok' ? '成功' : '操作'}</span><time>${item.at.toLocaleTimeString('zh-CN')}</time></div>
+      <div>${esc(item.message)}</div>${item.detail ? `<div style="margin-top:4px;color:var(--text-muted);white-space:pre-wrap;word-break:break-word;">${esc(item.detail)}</div>` : ''}
+    </div>`).join('');
+  }
+
+  function openOperationDrawer() { document.getElementById('operation-drawer').classList.add('open'); document.getElementById('drawer-overlay').style.display = 'block'; renderOperationLog(); }
+  function closeOperationDrawer() { document.getElementById('operation-drawer').classList.remove('open'); document.getElementById('drawer-overlay').style.display = 'none'; }
+  function clearOperationLog() { operationLog.length = 0; recordOperation('info', '操作日志已清空'); }
 
   // 页面加载入口
   window.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     initView();
     loadStats();
     loadKeys();
@@ -2762,8 +2858,19 @@
   function toast(msg, mood) {
     const el = document.getElementById('toast');
     if (el) { el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200); }
+    const text = String(msg || '');
+    const bad = (mood || '').includes('fail') || /失败|错误|异常|网络|失效/.test(text);
+    recordOperation(bad ? 'bad' : (/成功|完成|已保存|已复制|已删除|已切换/.test(text) ? 'ok' : 'info'), text);
     if (window.DogeUI) DogeUI.pop(mood || DogeUI.guess(msg), msg);
   }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (button && button.id !== 'operation-count') {
+      const label = button.getAttribute('aria-label') || button.textContent.replace(/\s+/g, ' ').trim();
+      if (label) recordOperation('info', '点击：' + label.slice(0, 100));
+    }
+  }, true);
 
   function esc(s) {
     return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2922,36 +3029,93 @@
     navigator.clipboard.writeText(cmd).then(() => toast('已复制标准 cURL 命令'));
   }
 
+  async function requestKeyTest(baseUrl, apiKey) {
+    const fd = new FormData();
+    fd.append('base_url', baseUrl);
+    fd.append('api_key', apiKey);
+    const res = await fetch('/keys/test', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
   async function retestKey(id, baseUrl, apiKey) {
     const btn = document.getElementById(`btn-retest-${id}`);
-    const origText = btn ? btn.textContent : '重新测速';
-    btn.innerHTML = `<span class="doge-testing"><img src="${DogeUI.path('testing')}" alt="">测速中…</span>`;
-    btn.disabled = true;
+    const origHTML = btn ? btn.innerHTML : `${DogeUI.face('testing', 'sm')} 重新测速`;
+    if (btn) { btn.innerHTML = `<span class="doge-testing"><img src="${DogeUI.path('testing')}" alt="">测速中…</span>`; btn.disabled = true; }
     const box = document.getElementById(`key-log-${id}`);
     if (box) { box.style.display = 'block'; box.textContent = `$ 正在测试 ${baseUrl} …`; }
 
     try {
-      const fd = new FormData();
-      fd.append('base_url', baseUrl);
-      fd.append('api_key', apiKey);
-      const res = await fetch('/keys/test', { method: 'POST', body: fd });
-      const j = await res.json();
+      const j = await requestKeyTest(baseUrl, apiKey);
       if (box) box.textContent = formatProbeLog(j);
       if (j.ok) {
+        recordOperation('ok', `Key #${id} 测速成功`, `${j.latency_ms || 0}ms · ${(j.models || []).length} 个模型`);
         DogeUI.pop('valid', `连上了！延迟 ${j.latency_ms}ms · 可用模型 ${(j.models||[]).length} 个`);
-        btn.innerHTML = DogeUI.face('valid', 'sm') + ' 重新测速';
+        if (btn) btn.innerHTML = DogeUI.face('valid', 'sm') + ' 重新测速';
         loadKeys();
       } else {
+        recordOperation('bad', `Key #${id} 测速失败`, String(j.error || '服务端返回失败'));
         DogeUI.pop('invalid', 'Key 已失效，要删掉吗？');
-        btn.innerHTML = DogeUI.face('invalid', 'sm') + ' 重新测速';
+        if (btn) btn.innerHTML = DogeUI.face('invalid', 'sm') + ' 重新测速';
         askDeleteInvalidKey(id, baseUrl);
       }
     } catch(e) {
       toast('测速异常: ' + e.message);
       if (box) box.textContent += `\n✗ 请求失败: ${e.message}`;
     } finally {
-      btn.textContent = origText;
-      btn.disabled = false;
+      if (btn) { btn.innerHTML = origHTML; btn.disabled = false; }
+    }
+  }
+
+  async function testAllKeys() {
+    if (keysBatchTesting) return;
+    keysBatchTesting = true;
+    const button = document.getElementById('btn-test-all-keys');
+    const progress = document.getElementById('keys-batch-progress');
+    const label = document.getElementById('keys-batch-label');
+    const result = document.getElementById('keys-batch-result');
+    const bar = document.getElementById('keys-batch-bar');
+    const original = button ? button.innerHTML : '';
+    if (button) { button.disabled = true; button.innerHTML = '批量测速中…'; }
+    progress.classList.add('on');
+    let passed = 0, failed = 0;
+    try {
+      // 默认列表只返回掩码；full=true 仅在内存中取测试所需 Key，绝不写入日志、DOM 或详情。
+      const response = await fetch('/keys?full=true');
+      if (!response.ok) throw new Error(`读取 Key 列表失败（HTTP ${response.status}）`);
+      const data = await response.json();
+      const keys = data.keys || [];
+      recordOperation('info', `开始批量重新测速，共 ${keys.length} 个 Key`);
+      for (let index = 0; index < keys.length; index += 1) {
+        const key = keys[index];
+        const n = index + 1;
+        label.textContent = `正在检查 ${n}/${keys.length} · ${key.provider || 'OpenAI 兼容'}`;
+        result.textContent = `成功 ${passed} · 失败 ${failed}`;
+        bar.style.width = `${Math.round((index / Math.max(keys.length, 1)) * 100)}%`;
+        const apiKey = key.api_key || '';
+        if (!apiKey) { failed += 1; recordOperation('bad', `Key #${key.id || n} 无法测速`, '服务端未返回可测试 Key'); continue; }
+        try {
+          const tested = await requestKeyTest(key.base_url, apiKey);
+          if (tested.ok) { passed += 1; recordOperation('ok', `Key #${key.id || n} 测速成功`, `${tested.latency_ms || 0}ms`); }
+          else { failed += 1; recordOperation('bad', `Key #${key.id || n} 测速失败`, String(tested.error || '服务端返回失败')); }
+        } catch (error) {
+          failed += 1;
+          recordOperation('bad', `Key #${key.id || n} 网络错误`, error.message);
+        }
+      }
+      label.textContent = `批量测速完成：${keys.length} 个`;
+      result.textContent = `成功 ${passed} · 失败 ${failed}`;
+      bar.style.width = '100%';
+      toast(`批量测速完成：成功 ${passed} · 失败 ${failed}`, failed ? 'fail' : 'success');
+      await loadKeys(true);
+    } catch (error) {
+      label.textContent = '批量测速未完成';
+      recordOperation('bad', '批量测速网络错误', error.message);
+      toast('批量测速失败: ' + error.message, 'fail');
+    } finally {
+      keysBatchTesting = false;
+      if (button) { button.disabled = false; button.innerHTML = original; }
+      setTimeout(() => progress.classList.remove('on'), 2600);
     }
   }
 
@@ -2959,12 +3123,16 @@
     const head = j.ok ? `✓ 通过 · ${j.latency_ms}ms · 模型 ${(j.models || []).length} 个`
                       : `✗ 失败${j.error ? ' · ' + j.error : ''}`;
     let out = head + '\n';
-    if (j.curl) out += '\n$ ' + j.curl + '\n';
+    if (j.curl) out += '\n$ ' + redactSecrets(j.curl) + '\n';
     (j.trace || []).forEach(t => {
       out += `→ ${t.step}  ${t.status}  ${t.ms}ms\n`;
       if (t.body) out += '   ' + String(t.body).trim().slice(0, 300) + '\n';
     });
     return out.trim();
+  }
+
+  function redactSecrets(value) {
+    return String(value || '').replace(/(Bearer\s+|api_key[=:]\s*)([^\s"']+)/ig, '$1[REDACTED]');
   }
 
   function toggleKeyLog(id) {
@@ -3952,6 +4120,7 @@
   function closeAnyDrawer() {
     document.getElementById('context-drawer').classList.remove('open');
     document.getElementById('harvest-drawer').classList.remove('open');
+    document.getElementById('operation-drawer').classList.remove('open');
     document.getElementById('drawer-overlay').style.display = 'none';
   }
 
