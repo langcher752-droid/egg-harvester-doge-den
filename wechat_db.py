@@ -88,7 +88,8 @@ def parse_content(ltype, text):
         if template:
             members = [(html.unescape(u).strip(), html.unescape(n).strip())
                        for u, n in _MEMBER_RE.findall(t)]
-            labels = [n or u for u, n in members]
+            # 微信偶尔把输入状态/占位昵称写进 memberlist；它不是被邀请人的真实昵称。
+            labels = [n or u for u, n in members if (n or u) not in ("正在输入", "Typing", "…", "...")]
             inviter = labels[0] if labels else "有人"
             names = ", ".join(labels[1:]) if len(labels) > 1 else "成员"
             readable = template.replace('"$username$"', inviter).replace('"$names$"', names)
