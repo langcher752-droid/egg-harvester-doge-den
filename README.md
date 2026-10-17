@@ -1,4 +1,57 @@
-# 鸡蛋收割机 / Egg Harvester
+# 🥚 Egg Harvester · 鸡蛋收割机
+
+> **EN / 中文** — A local-first intelligence workbench for collecting, inspecting, and organizing messages, API eggs, and Doge memes.
+> 面向本地优先的群情报工作台：采集、检查和整理消息、API 鸡蛋与 Doge meme。
+
+---
+
+## English
+
+Egg Harvester is a local-first intelligence workbench. It collects messages from authorized QQ, WeChat, and web sources, extracts OpenAI-compatible API configurations, checks connectivity, and provides a local Web UI plus an optional macOS Swift shell.
+
+### Highlights
+
+- Message ingestion and intelligence summaries
+- API-key extraction and connectivity checks
+- Safe DSH Desktop profile import with backups and rollback
+- Manageable **iconmeme** library: upload, name, select, and delete Doge images
+- Doge mascot, state-face customization, themes, and operation feedback
+- Offline unit tests, pinned dependencies, Docker support, and a reproducible Makefile workflow
+
+### Quick start
+
+```bash
+git clone <your-repository-url> egg-harvester
+cd egg-harvester
+cp .env.example .env
+make install
+make test
+make run
+```
+
+Open <http://127.0.0.1:8890/>.
+
+### Docker
+
+```bash
+docker build -t egg-harvester:local .
+docker run --rm -p 8890:8890 \
+  --env-file .env \
+  -v "$(pwd)/runtime:/data" \
+  egg-harvester:local
+```
+
+Docker runs the Python/FastAPI backend. macOS WeChat integration, NapCat, and the Swift desktop shell remain optional host integrations.
+
+### Privacy
+
+This project can process private messages, images, and API credentials. Verified API keys are stored locally in SQLite in plaintext so they can be retested and exported; never commit `eggs.db`, `.env`, `media/`, logs, chat exports, QR codes, device files, or runtime data.
+
+### License
+
+MIT. See [`LICENSE`](LICENSE).
+
+---
 
 本项目是一个本地优先的群情报工作台：从已授权的 QQ、微信和网页来源收集消息，提取可用的 OpenAI-compatible API 配置，运行连通性检查，并提供本地 Web UI 和可选的 macOS Swift 外壳。
 
