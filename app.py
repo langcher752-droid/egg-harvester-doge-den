@@ -1240,11 +1240,17 @@ async def import_key_to_dsh(
     key_data = None
     for r in rows:
         if r[0] == key_id:
+            try:
+                stored_models = json.loads(r[5] or "[]")
+            except (TypeError, json.JSONDecodeError):
+                stored_models = [m.strip() for m in (r[5] or "").split(",") if m.strip()]
+            if not isinstance(stored_models, list):
+                stored_models = []
             key_data = {
                 "id": r[0],
                 "base_url": r[2],
                 "api_key": r[8],
-                "models": r[5].split(",") if r[5] else [],
+                "models": [str(m).strip() for m in stored_models if str(m).strip()],
             }
             break
     

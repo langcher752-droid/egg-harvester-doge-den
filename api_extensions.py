@@ -1,9 +1,15 @@
 """API扩展模块 - 支持新功能的后端逻辑"""
 import json
 import os
+import re
+import shutil
 import sqlite3
+import tempfile
+import time
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
+
+import yaml
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "eggs.db")
 
@@ -168,62 +174,150 @@ def get_file_title(message_id: int) -> str:
         conn.close()
 
 
-# ========== DSH Keys 导入 ==========
+# ========== DSH Desktop 导入 ==========
+
+DSH_DIR = os.path.expanduser("~/.dsh")
+DSH_PATCH_PATH = os.path.join(DSH_DIR, "profiles", "desktop", "cordis.patch.yml")
+DSH_CREDENTIALS_PATH = os.path.join(DSH_DIR, ".credentials.yaml")
+
+
+class _DshLoader(yaml.SafeLoader):
+    """允许 DSH patch 中的 !!js 标签通过离线校验。"""
+
+
+_DshLoader.add_multi_constructor("tag:yaml.org,2002:js", lambda loader, suffix, node: None)
+_DshLoader.add_multi_constructor("!js", lambda loader, suffix, node: None)
+
+
+def _safe_provider_name(name: str) -> str:
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "_", (name or "custom").strip()).strip("._-")
+    return value or "custom"
+
+
+def _credential_ref(name: str) -> str:
+    return "EGG_HARVESTER_{}_API_KEY".format(_safe_provider_name(name).upper().replace("-", "_"))
+
+
+def _atomic_write(path: str, content: str) -> None:
+    parent = os.path.dirname(path) or "."
+    fd, tmp = tempfile.mkstemp(prefix=".dsh-import-", dir=parent, text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def _backup(path: str) -> str:
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    dst = "{}.bak-import-{}-{}".format(path, stamp, time.time_ns() % 1_000_000)
+    shutil.copy2(path, dst)
+    return dst
+
+
+def _patch_provider_text(text: str, name: str, base_url: str, ref: str, models: List[str]):
+    lines = text.splitlines(keepends=True)
+    target = next((i for i, line in enumerate(lines) if re.match(r"^- id:\s*llm-pi-ai\s*$", line.rstrip())), None)
+    if target is None:
+        raise ValueError("desktop patch 缺少 llm-pi-ai 配置")
+    end = next((i for i in range(target + 1, len(lines)) if re.match(r"^- id:\s*", lines[i])), len(lines))
+    providers = next((i for i in range(target, end) if re.match(r"^\s{4}providers:\s*$", lines[i].rstrip())), None)
+    if providers is None:
+        raise ValueError("llm-pi-ai 配置缺少 providers")
+    provider_indent = 6
+    block_start = block_end = None
+    key_re = re.compile(r"^\s{6}([A-Za-z0-9_.-]+):\s*$")
+    for i in range(providers + 1, end):
+        match = key_re.match(lines[i])
+        if match and match.group(1) == name:
+            block_start = i
+            block_end = next((j for j in range(i + 1, end)
+                              if lines[j].strip() and len(lines[j]) - len(lines[j].lstrip()) <= provider_indent), end)
+            break
+    model_lines = "".join("          - id: {}\n            name: {}\n".format(json.dumps(m, ensure_ascii=False), json.dumps(m, ensure_ascii=False)) for m in models)
+    block = ("      {}:\n"
+             "        apiKeyEnv: {}\n"
+             "        api: openai-completions\n"
+             "        baseURL: {}\n"
+             "        models:\n{}".format(name, ref, base_url, model_lines))
+    if block_start is not None:
+        lines[block_start:block_end] = [block]
+        return "".join(lines), "updated"
+    insert_at = next((i for i in range(providers + 1, end)
+                      if lines[i].strip() and len(lines[i]) - len(lines[i].lstrip()) <= 4), end)
+    lines[insert_at:insert_at] = [block]
+    return "".join(lines), "added"
+
+
+def _verify_patch(path: str, name: str, base_url: str, ref: str, models: List[str]) -> None:
+    with open(path, encoding="utf-8") as handle:
+        data = yaml.load(handle, Loader=_DshLoader) or []
+    for entry in data if isinstance(data, list) else []:
+        if entry.get("id") == "llm-pi-ai":
+            provider = ((entry.get("config") or {}).get("providers") or {}).get(name)
+            if provider and provider.get("baseURL") == base_url and provider.get("apiKeyEnv") == ref:
+                actual = [m.get("id") if isinstance(m, dict) else str(m) for m in provider.get("models") or []]
+                if actual == models:
+                    return
+    raise ValueError("DSH patch 写入后校验失败")
+
 
 def import_to_dsh_keys(base_url: str, api_key: str, provider_name: str, models: List[str]) -> Dict:
-    """导入API key到 ~/.dsh/keys.json"""
-    dsh_keys_path = os.path.expanduser("~/.dsh/keys.json")
-    
-    # 确保目录存在
-    os.makedirs(os.path.dirname(dsh_keys_path), exist_ok=True)
-    
-    # 读取现有配置
-    if os.path.exists(dsh_keys_path):
-        with open(dsh_keys_path, "r", encoding="utf-8") as f:
-            try:
-                config = json.load(f)
-            except json.JSONDecodeError:
-                config = {"providers": []}
-    else:
-        config = {"providers": []}
-    
-    # 检查是否已存在相同的 base_url + key
-    providers = config.get("providers", [])
-    existing_idx = None
-    for idx, p in enumerate(providers):
-        if p.get("base_url") == base_url and p.get("api_key") == api_key:
-            existing_idx = idx
-            break
-    
-    # 构建新的 provider 条目
-    new_provider = {
-        "name": provider_name,
-        "base_url": base_url,
-        "api_key": api_key,
-        "models": models,
-    }
-    
-    if existing_idx is not None:
-        # 覆盖现有条目
-        providers[existing_idx] = new_provider
-        action = "updated"
-    else:
-        # 追加新条目
-        providers.append(new_provider)
-        action = "added"
-    
-    config["providers"] = providers
-    
-    # 写回文件
-    with open(dsh_keys_path, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
-    
-    return {
-        "ok": True,
-        "action": action,
-        "path": dsh_keys_path,
-        "provider": provider_name,
-    }
+    """导入 DSH Desktop 的 desktop profile；保留旧接口名以兼容前端调用。"""
+    if not api_key:
+        return {"ok": False, "error": "API key 为空"}
+    name = _safe_provider_name(provider_name)
+    base_url = (base_url or "").strip().rstrip("/")
+    models = [str(m).strip() for m in (models or []) if str(m).strip()]
+    patch_path, creds_path = DSH_PATCH_PATH, DSH_CREDENTIALS_PATH
+    if not os.path.isfile(patch_path):
+        return {"ok": False, "error": "DSH Desktop patch 不存在", "path": patch_path}
+    os.makedirs(os.path.dirname(creds_path), exist_ok=True)
+    ref = _credential_ref(name)
+    backups = []
+    creds_existed = os.path.exists(creds_path)
+    try:
+        with open(patch_path, encoding="utf-8") as handle:
+            patch_text = handle.read()
+        new_patch, action = _patch_provider_text(patch_text, name, base_url, ref, models)
+        creds = {}
+        if os.path.exists(creds_path):
+            with open(creds_path, encoding="utf-8") as handle:
+                creds = yaml.safe_load(handle) or {}
+        if not isinstance(creds, dict):
+            raise ValueError("DSH credentials 格式无效")
+        refs = creds.setdefault("refs", {})
+        if not isinstance(refs, dict):
+            raise ValueError("DSH credentials.refs 格式无效")
+        refs[ref] = api_key
+        new_creds = yaml.safe_dump(creds, allow_unicode=True, sort_keys=False)
+        if new_patch != patch_text:
+            backups.append(_backup(patch_path))
+            _atomic_write(patch_path, new_patch)
+        if os.path.exists(creds_path):
+            with open(creds_path, encoding="utf-8") as handle:
+                old_creds = handle.read()
+        else:
+            old_creds = ""
+        if new_creds != old_creds:
+            if os.path.exists(creds_path):
+                backups.append(_backup(creds_path))
+            _atomic_write(creds_path, new_creds)
+        _verify_patch(patch_path, name, base_url, ref, models)
+        return {"ok": True, "action": action, "path": patch_path, "provider": name,
+                "credential_ref": ref, "backup": backups[-1] if backups else None,
+                "verified": True}
+    except Exception as exc:
+        for backup in reversed(backups):
+            original = backup.split(".bak-import-", 1)[0]
+            shutil.copy2(backup, original)
+        if not creds_existed and os.path.exists(creds_path):
+            os.unlink(creds_path)
+        return {"ok": False, "error": "DSH 导入失败，已回滚: {}".format(exc), "path": patch_path}
 
 
 # ========== 新群检测 ==========
