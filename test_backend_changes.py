@@ -51,6 +51,29 @@ class BackendChangesTest(unittest.TestCase):
         with open(marker, "r", encoding="utf-8") as f:
             self.assertEqual(f.read(), "0")
 
+    def test_stale_decrypted_output_triggers_refresh_even_with_marker(self):
+        decrypted = os.path.join(self.tmp.name, "decrypted")
+        dbdir = os.path.join(self.tmp.name, "db")
+        os.makedirs(os.path.join(decrypted, "message")); os.makedirs(os.path.join(dbdir, "message"))
+        src = os.path.join(dbdir, "message", "message_0.db")
+        dst = os.path.join(decrypted, "message", "message_0.db")
+        open(src, "wb").close(); open(dst, "wb").close()
+        os.utime(src, (20, 20)); os.utime(dst, (10, 10))
+        marker = os.path.join(decrypted, ".last_mtime")
+        with open(marker, "w") as f:
+            f.write("999")
+        real_exists = os.path.exists
+        fake_proc = type("P", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        with patch.object(media, "WECHAT_KEYS_JSON", "keys.json"), \
+             patch.object(media, "WECHAT_DB_DIR", dbdir), \
+             patch.object(media, "WECHAT_DECRYPTED", decrypted), \
+             patch.object(media, "WECHAT_PY", "python"), \
+             patch.object(media.subprocess, "run", return_value=fake_proc), \
+             patch("os.path.exists", side_effect=lambda p: True if p.endswith("decrypt.py") else real_exists(p)):
+            result = media.refresh_wechat_decrypted_status()
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["ran"])
+
 
 if __name__ == "__main__":
     unittest.main()

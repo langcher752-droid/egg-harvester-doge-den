@@ -175,7 +175,25 @@ def refresh_wechat_decrypted_status():
                 last = float(f.read().strip())
         except Exception:
             last = 0.0
-    if newest <= last and os.path.isdir(WECHAT_DECRYPTED):
+    # 不只依赖全局 marker：微信把新消息写进某个 message/*.db 或 WAL 时，
+    # 其他数据库的 mtime 可能更晚，旧逻辑会推进 marker 却留下过期的
+    # decrypted/message/message_0.db，之后永远返回 unchanged。
+    stale_outputs = []
+    for root, _dirs, files in os.walk(WECHAT_DB_DIR):
+        for name in files:
+            if not name.endswith((".db", ".db-wal")):
+                continue
+            src = os.path.join(root, name)
+            rel = os.path.relpath(src, WECHAT_DB_DIR)
+            if rel.endswith(".db-wal"):
+                rel = rel[:-4]
+            dst = os.path.join(WECHAT_DECRYPTED, rel)
+            try:
+                if not os.path.exists(dst) or os.path.getmtime(src) > os.path.getmtime(dst):
+                    stale_outputs.append(rel)
+            except OSError:
+                stale_outputs.append(rel)
+    if newest <= last and not stale_outputs and os.path.isdir(WECHAT_DECRYPTED):
         return {"ok": True, "ran": False, "status": "unchanged", "source_mtime": newest}
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "wechat-key-hook", "decrypt.py")
     script = os.path.normpath(script)
@@ -195,7 +213,8 @@ def refresh_wechat_decrypted_status():
             f.write(str(newest))
     except Exception:
         pass
-    return {"ok": True, "ran": True, "status": "updated", "source_mtime": newest}
+    return {"ok": True, "ran": True, "status": "updated", "source_mtime": newest,
+            "stale_outputs": stale_outputs[:20]}
 
 
 def refresh_wechat_decrypted():
