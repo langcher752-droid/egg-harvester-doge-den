@@ -67,6 +67,28 @@ class DshImportTest(unittest.TestCase):
                 self.assertEqual(handle.read(), original)
             self.assertFalse(os.path.exists(creds_path))
 
+    def test_verification_failure_restores_both_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            patch_path = os.path.join(tmp, "cordis.patch.yml")
+            creds_path = os.path.join(tmp, "credentials.yaml")
+            with open(patch_path, "w", encoding="utf-8") as handle:
+                handle.write(PATCH)
+            with open(creds_path, "w", encoding="utf-8") as handle:
+                handle.write("version: 1\nrefs: {}\n")
+            with open(patch_path, encoding="utf-8") as handle:
+                old_patch = handle.read()
+            with open(creds_path, encoding="utf-8") as handle:
+                old_creds = handle.read()
+            with patch.object(api_extensions, "DSH_PATCH_PATH", patch_path), \
+                 patch.object(api_extensions, "DSH_CREDENTIALS_PATH", creds_path), \
+                 patch.object(api_extensions, "_verify_patch", side_effect=ValueError("forced")):
+                result = api_extensions.import_to_dsh_keys("https://x", "key", "x", ["m"])
+            self.assertFalse(result["ok"])
+            with open(patch_path, encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), old_patch)
+            with open(creds_path, encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), old_creds)
+
 
 if __name__ == "__main__":
     unittest.main()
