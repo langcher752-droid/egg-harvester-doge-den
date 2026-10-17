@@ -3268,20 +3268,26 @@
         fd.append('key_id', keyId);
         fd.append('provider_name', providerName);
         if (selectedModels.length > 0) {
-          selectedModels.forEach(m => fd.append('selected_models', m));
+          // 后端当前接收逗号分隔的 Form 字段；不要重复 append 同名字段，
+          // 否则 FastAPI 的 str 参数只会拿到最后一个模型。
+          fd.append('selected_models', selectedModels.join(','));
         }
         
         const res = await fetch('/keys/import_to_dsh', { method: 'POST', body: fd });
         const data = await res.json();
         
-        if (data.success) {
+        if (data.ok) {
           successCount++;
+          recordOperation('ok', `Key #${keyId} 已导入 DSH Desktop`, data.provider || providerName);
         } else {
           failCount++;
-          console.error(`导入失败 (Key ${keyId}):`, data.message);
+          const reason = data.error || data.message || '服务端返回失败';
+          recordOperation('bad', `Key #${keyId} 导入 DSH Desktop 失败`, reason);
+          console.error(`导入失败 (Key ${keyId}):`, reason);
         }
       } catch (e) {
         failCount++;
+        recordOperation('bad', `Key #${keyId} 导入 DSH Desktop 异常`, e.message);
         console.error(`导入异常 (Key ${keyId}):`, e);
       }
     }
