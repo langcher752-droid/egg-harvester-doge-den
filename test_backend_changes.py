@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import media
 import store
+import wechat_db
 
 
 class BackendChangesTest(unittest.TestCase):
@@ -73,6 +74,20 @@ class BackendChangesTest(unittest.TestCase):
             result = media.refresh_wechat_decrypted_status()
         self.assertTrue(result["ok"])
         self.assertTrue(result["ran"])
+
+    def test_wechat_system_template_is_readable(self):
+        raw = (
+            '48192425706@chatroom: <sysmsg type="sysmsgtemplate">'
+            '<content_template><template><![CDATA["$username$"邀请"$names$"加入群聊]]>'
+            '</template><link_list><memberlist><member>'
+            '<username><![CDATA[wxid_d2wyopv53ixu22]]></username>'
+            '<nickname><![CDATA[K]]></nickname></member></memberlist>'
+            '</link_list></content_template></sysmsg>'
+        )
+        body, media_key, sub = wechat_db.parse_content(10000, raw.split(': ', 1)[1])
+        self.assertEqual(sub, "system")
+        self.assertEqual(media_key, None)
+        self.assertEqual(body, "[群系统] K邀请成员加入群聊")
 
 
 if __name__ == "__main__":
