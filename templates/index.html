@@ -2912,6 +2912,7 @@
 
   async function retestKey(id, baseUrl, apiKey) {
     const btn = document.getElementById(`btn-retest-${id}`);
+    const origText = btn ? btn.textContent : '重新测速';
     btn.innerHTML = `<span class="doge-testing"><img src="${DogeUI.path('testing')}" alt="">测速中…</span>`;
     btn.disabled = true;
     const box = document.getElementById(`key-log-${id}`);

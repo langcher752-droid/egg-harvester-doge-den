@@ -1,0 +1,15 @@
+.env
+.DS_Store
+__pycache__/
+*.pyc
+eggs.db
+*.db
+logs/
+media/
+venv/
+dist/
+screenshots/
+node_modules/
+electron-app/node_modules/
+notifier-app/node_modules/
+app/build/
