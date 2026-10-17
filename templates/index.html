@@ -3209,7 +3209,8 @@
       const fd = new FormData();
       if (ids.length) fd.append('ids', ids.join(','));
       else { fd.append('platform', currentChat.platform || ''); fd.append('chat_id', currentChat.chat_id || ''); }
-      const res = await fetch('/messages/ai_ask', { method:'POST', body: Object.assign(fd, question ? (() => { fd.append('question', question); return fd; })() : fd) });
+      if (question) fd.append('question', question);
+      const res = await fetch('/messages/ai_ask', { method:'POST', body: fd });
       let data = await res.json();
       if (!res.ok || !data.ok) {
         // Existing backend contract: summarize the same real messages when Q&A is unavailable.
