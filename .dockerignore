@@ -1,0 +1,17 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.env
+*.db
+media
+logs
+screenshots
+dist
+node_modules
+electron-app
+notifier-app
+lagrange
+static/iconmeme
+*.md~

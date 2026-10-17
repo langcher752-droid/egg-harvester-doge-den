@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>情报简报 · 群活动摘要</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; margin: 0; background:#f5f6f8; color:#1f2329; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color:#8a919f; font-size: 13px; margin-bottom: 20px; }
+  .toolbar { display:flex; gap:12px; margin-bottom:20px; align-items:center; }
+  button { border:0; border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; background:#2563eb; color:#fff; }
+  button:hover { background:#1d4ed8; }
+  button:disabled { opacity:.5; cursor:default; }
+  select { border:1px solid #d1d5db; border-radius:8px; padding:8px 12px; font-size:13px; background:#fff; }
+  
+  .card { background:#fff; border-radius:12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .group-name { font-size:16px; font-weight:600; color:#1f2329; }
+  .meta { color:#8a919f; font-size:12px; }
+  .stats { display:flex; gap:16px; margin:8px 0 12px; }
+  .stat { font-size:12px; color:#64748b; }
+  .stat strong { color:#1f2329; font-weight:600; }
+  
+  .tags { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+  .tag { display:inline-block; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:500; }
+  .tag.exploit { background:#fef3c7; color:#92400e; }
+  .tag.tech { background:#dbeafe; color:#1e40af; }
+  .tag.opportunity { background:#dcfce7; color:#166534; }
+  .tag.industry { background:#f3e8ff; color:#6b21a8; }
+  .tag.key { background:#fee2e2; color:#991b1b; }
+  .tag.social { background:#f3f4f6; color:#374151; }
+  
+  .summary { font-size:14px; line-height:1.7; color:#1f2329; white-space:pre-wrap; }
+  .empty { text-align:center; color:#8a919f; padding:80px 0; font-size:14px; }
+  
+  .loading { text-align:center; padding:40px 0; color:#8a919f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+    <h1 style="margin:0">情报简报</h1>
+    <a href="/" style="color:#111; text-decoration:none; font-size:13px; padding:6px 12px; border:1px solid #d1d5db; border-radius:6px">← 返回收割</a>
+  </div>
+  <div class="sub">自动分类群消息，生成结构化摘要</div>
+  
+  <div class="toolbar">
+    <button id="generate" onclick="generateAll()">生成所有群简报</button>
+    <select id="window">
+      <option value="6">最近 6 小时</option>
+      <option value="12">最近 12 小时</option>
+      <option value="24">最近 24 小时</option>
+      <option value="48">最近 48 小时</option>
+    </select>
+    <button onclick="loadSummaries()">刷新</button>
+  </div>
+  
+  <div id="list"></div>
+</div>
+
+<script>
+function esc(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function formatTime(ts) {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 3600) return `${Math.floor(diff/60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff/3600)} 小时前`;
+  return d.toLocaleDateString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function renderTags(tags) {
+  const order = ['exploit', 'tech', 'opportunity', 'key', 'industry', 'social'];
+  const labels = {
+    exploit: '破甲', tech: '技术', opportunity: '机会',
+    industry: '行业', key: 'API Key', social: '闲聊'
+  };
+  return order.filter(t => tags[t] > 0)
+    .map(t => `<span class="tag ${t}">${labels[t]} ${tags[t]}</span>`)
+    .join('');
+}
+
+async function loadSummaries() {
+  const el = document.getElementById('list');
+  el.innerHTML = '<div class="loading">加载中…</div>';
+  
+  try {
+    const r = await fetch('/intel/summaries?limit=30');
+    const j = await r.json();
+    
+    if (!j.summaries || j.summaries.length === 0) {
+      el.innerHTML = '<div class="empty">还没有简报，点击上方按钮生成</div>';
+      return;
+    }
+    
+    el.innerHTML = j.summaries.map(s => {
+      const groupName = s.chat_name || s.chat_id;
+      const platform = s.platform === 'qq' ? 'QQ' : '微信';
+      const timeRange = `${formatTime(s.window_start)} - ${formatTime(s.window_end)}`;
+      
+      return `
+        <div class="card">
+          <div class="card-header">
+            <div class="group-name">${esc(groupName)}</div>
+            <div class="meta">${platform} · ${esc(timeRange)}</div>
+          </div>
+          <div class="stats">
+            <div class="stat"><strong>${s.message_count}</strong> 条消息</div>
+            <div class="stat"><strong>${s.key_count}</strong> 个 Key</div>
+          </div>
+          <div class="tags">${renderTags(s.tags)}</div>
+          <div class="summary">${esc(s.summary)}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="empty">加载失败：${esc(e.message)}</div>`;
+  }
+}
+
+async function generateAll() {
+  const btn = document.getElementById('generate');
+  btn.disabled = true;
+  btn.textContent = '生成中…';
+  
+  const window = document.getElementById('window').value;
+  
+  try {
+    const r = await fetch('/intel/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({window_hours: window})
+    });
+    const j = await r.json();
+    
+    alert(`已生成 ${j.count} 份简报`);
+    await loadSummaries();
+  } catch (e) {
+    alert(`生成失败：${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '生成所有群简报';
+  }
+}
+
+// 初始加载
+loadSummaries();
+</script>
+</body>
+</html>

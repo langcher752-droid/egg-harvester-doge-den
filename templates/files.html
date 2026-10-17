@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>群文件 · 待下载</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; margin: 0; background:#f5f6f8; color:#1f2329; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color:#8a919f; font-size: 13px; margin-bottom: 20px; }
+  .card { background:#fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .name { font-size: 15px; font-weight: 600; word-break: break-all; }
+  .meta { color:#8a919f; font-size: 12px; margin: 6px 0 12px; }
+  .btns { display:flex; gap:8px; }
+  button { border:0; border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; }
+  .down { background:#2563eb; color:#fff; }
+  .ignore { background:#eef0f3; color:#4b5563; }
+  .ctx { background:#fff; border:1px solid #d1d5db; color:#374151; }
+  .empty { text-align:center; color:#8a919f; padding:60px 0; }
+  #ctxbox { position:fixed; right:0; top:0; width:360px; height:100%; background:#fff; box-shadow:-2px 0 8px rgba(0,0,0,.1); padding:16px; overflow-y:auto; display:none; box-sizing:border-box; }
+  #ctxbox .msg { font-size:13px; padding:8px 0; border-bottom:1px solid #f0f1f3; word-break:break-all; }
+  #ctxbox .sender { color:#2563eb; font-weight:600; }
+  #ctxbox .time { color:#9aa1ad; font-size:11px; }
+  #ctxclose { float:right; cursor:pointer; color:#8a919f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>群文件 · 待下载</h1>
+  <div class="sub" id="sub">加载中…</div>
+  <div id="list"></div>
+</div>
+<div id="ctxbox">
+  <span id="ctxclose">✕ 关闭</span>
+  <h3 id="ctxtitle"></h3>
+  <div id="ctxlist"></div>
+</div>
+<script>
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function load() {
+  const r = await fetch('/files/list');
+  const j = await r.json();
+  document.getElementById('sub').textContent = `待决策 ${j.count} 个（≤20MB 已自动下载，不在此列）`;
+  const el = document.getElementById('list');
+  if (!j.files.length) { el.innerHTML = '<div class="empty">没有待决策的群文件</div>'; return; }
+  el.innerHTML = j.files.map(f => `
+    <div class="card" data-id="${f.id}" data-chat="${esc(f.chat_id)}">
+      <div class="name">${esc(f.name)}</div>
+      <div class="meta">${esc(f.group)} · ${esc(f.size)} · ${esc(f.time)}</div>
+      <div class="btns">
+        <button class="down" onclick="act('${f.id}','download')">下载</button>
+        <button class="ignore" onclick="act('${f.id}','ignore')">忽略</button>
+        <button class="ctx" onclick="ctx('${f.id}','${esc(f.chat_id)}')">查看上下文</button>
+      </div>
+    </div>`).join('');
+}
+
+async function act(id, action) {
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  const chat_id = card ? card.getAttribute('data-chat') : '';
+  const r = await fetch('/files/action', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({id, action, chat_id})});
+  const j = await r.json();
+  if (j.ok) { load(); } else { alert('失败：' + (j.error||'未知')); }
+}
+
+async function ctx(id, chat_id) {
+  const r = await fetch(`/messages?platform=qq&chat_id=${encodeURIComponent(chat_id)}&limit=20`);
+  const j = await r.json();
+  document.getElementById('ctxtitle').textContent = '上下文（' + chat_id + '）';
+  document.getElementById('ctxlist').innerHTML = (j.messages||[]).map(m =>
+    `<div class="msg"><span class="sender">${esc(m.sender_name||'')}</span> <span class="time">${esc(m.ts?new Date(m.ts*1000).toLocaleString():'')}</span><br>${esc(m.content||'')}</div>`).join('');
+  document.getElementById('ctxbox').style.display = 'block';
+}
+
+document.getElementById('ctxclose').onclick = () => document.getElementById('ctxbox').style.display='none';
+load();
+</script>
+</body>
+</html>

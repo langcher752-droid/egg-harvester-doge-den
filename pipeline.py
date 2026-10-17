@@ -1,0 +1,46 @@
+"""共享管线：文本 → 提取 → 测试 → 入库（仅存已验证）。
+
+消息落盘由各 ingest 模块负责（store.save_raw），这里**只管从文本里捞鸡蛋**。
+web UI / CLI / OneBot(QQ) / 微信 全部调用 process_text，保证行为一致。
+"""
+from extract import extract_from_text
+from probe import probe
+from db import store_valid_key
+
+
+def process_text(text: str, source: str = "text"):
+    if not text or not text.strip():
+        return []
+    candidates = extract_from_text(text)
+    results = []
+    for c in candidates:
+        res = probe(c.get("base_url"), c.get("api_key"))
+        if res["ok"]:
+            h = store_valid_key(
+                source, c.get("base_url"), c["api_key"], res["provider"], res["models"], res["latency_ms"]
+            )
+            results.append(
+                {
+                    "base_url": c.get("base_url"),
+                    "provider": res["provider"],
+                    "models": res["models"],
+                    "latency_ms": res.get("latency_ms"),
+                    "status": "valid",
+                    "hash": h,
+                    "curl": res.get("curl"),
+                    "trace": res.get("trace"),
+                }
+            )
+        else:
+            ak = c.get("api_key") or ""
+            results.append(
+                {
+                    "base_url": c.get("base_url"),
+                    "api_key_mask": (ak[:4] + "****") if ak else "****",
+                    "latency_ms": res.get("latency_ms"),
+                    "status": "invalid",
+                    "curl": res.get("curl"),
+                    "trace": res.get("trace"),
+                }
+            )
+    return results

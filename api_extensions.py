@@ -507,12 +507,12 @@ def dismiss_groups(items: List[Dict]) -> int:
 # ========== QQ 登录状态 / 二维码 ==========
 
 import subprocess
-import time
+import shutil
 
 _QR_CACHE = {"path": None, "ts": 0.0}
 _QR_TMP = "/tmp/groupintel-qr.png"
 NAP_CONTAINER = os.getenv("NAP_CONTAINER", "napcat")
-DOCKER_BIN = os.getenv("DOCKER_BIN", "/Users/rancho/.orbstack/bin/docker")
+DOCKER_BIN = os.getenv("DOCKER_BIN") or shutil.which("docker") or "docker"
 
 
 def _docker(*args, timeout: int = 20):
