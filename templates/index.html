@@ -531,6 +531,12 @@
     display: block; padding: 6px 14px; border: none;
     border-radius: 999px; background: var(--accent-blue); color: #fff; font-size: 12px; cursor: pointer;
     box-shadow: 0 6px 18px rgba(47,127,224,.28);
+    display: inline-flex; align-items: center; gap: 7px; font-weight: 600;
+  }
+  .new-msg-arrow {
+    width: 8px; height: 8px; display: inline-block;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
   }
 
   /* Telegram 风格气泡布局 */
@@ -1937,7 +1943,7 @@
           </div>
           <div class="stream-scroll" id="stream-scroll">
             <div class="stream-container" id="stream-list"></div>
-            <button class="new-msg-pill" id="new-msg-pill" style="display:none;" onclick="jumpToNewest()">↑ 有新消息</button>
+            <button class="new-msg-pill" id="new-msg-pill" style="display:none;" onclick="jumpToNewest()" aria-label="跳转到最新消息"><span class="new-msg-arrow" aria-hidden="true"></span><span class="new-msg-count">有新消息</span></button>
           </div>
         </div>
       </div>
@@ -3355,13 +3361,14 @@
 
     const pill = document.getElementById('new-msg-pill');
 
-    // 静默刷新 + 用户已往上翻 → 不重建 DOM、不滚动，只弹"有新消息"提示
-    if (silent && !pinBottom) {
-      if (hasNew) {
-        pill.style.display = 'block';
-        pill.textContent = `↑ ${messages.filter(m => Number(m.id) > knownLatest).length} 条新消息`;
-      }
-      // 关键：同步签名，防止下次 tick 再比对（read 标记变更也不误闪 pill / 不滚底）
+    // 用户正在看历史消息时，任何刷新路径都不能把他强行带到底部。
+    // 之前这里只判断 silent，普通刷新路径会重建 DOM 并触发贴底。
+    if (!pinBottom && hasNew) {
+      const count = messages.filter(m => Number(m.id) > knownLatest).length;
+      const countEl = pill.querySelector('.new-msg-count');
+      if (countEl) countEl.textContent = `${count || 1} 条新消息`;
+      pill.style.display = 'inline-flex';
+      // 同步签名但保留当前 DOM；点击提示时会清空签名并显式跳转。
       lastStreamSig = sig;
       return;
     }
@@ -3431,7 +3438,9 @@
 
   function jumpToNewest() {
     document.getElementById('new-msg-pill').style.display = 'none';
-    reloadStream();
+    forceBottomOnce = true;
+    lastStreamSig = '';
+    loadStream();
   }
 
   // 聊天软件式相对时间
