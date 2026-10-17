@@ -2490,7 +2490,8 @@
   }
 
   async function detectEvents() {
-    const btn = event.target;
+    const btn = document.querySelector('#view-intel button[onclick="detectEvents()"]');
+    const oldText = btn ? btn.textContent : '';
     btn.disabled = true;
     toast('AI 正在扫描新消息...');
     try {
@@ -2502,6 +2503,7 @@
       toast('检测失败: ' + e.message);
     } finally {
       btn.disabled = false;
+      if (oldText) btn.textContent = oldText;
     }
   }
 
@@ -3316,7 +3318,7 @@
 
   // 差量应用：内容没变就完全不动 DOM（之前每 5 秒重建导致闪烁 + 图片重载）
   function applyStream(messages, silent) {
-    if (webSource && currentChat.platform === 'web') messages = messages.filter(m => messageWebSource(m) === webSource);
+    if (webSource) messages = messages.filter(m => m.platform === 'web' && messageWebSource(m) === webSource);
     const sig = messages.map(m => `${m.id}:${m.read}|${m.recalled}`).join(',');
     const scroll = document.getElementById('stream-scroll');
     const title = currentChat.chat_id ? (currentChat.name || currentChat.chat_id) : '全部消息';
