@@ -2958,12 +2958,12 @@
           <div class="key-header">
             <div style="display:flex;align-items:center;gap:8px;">
               <input type="checkbox" class="key-checkbox" data-key-id="${k.id}" data-base-url="${esc(k.base_url)}" data-key-val="${esc(keyVal)}" data-provider="${esc(k.provider)}" data-models='${JSON.stringify(models)}'>
-              ${DogeUI.face('valid', 'sm')}
+              ${DogeUI.face(k.status === 'invalid' ? 'invalid' : 'valid', 'sm')}
               <span class="provider-badge">${esc(k.provider || 'OpenAI 兼容')}</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:11px;color:var(--text-muted);">${esc(k.source || '')}</span>
-              <span class="latency-badge ${latencyClass}">${latency}ms</span>
+              <span class="latency-badge ${latencyClass}">${k.status === 'invalid' ? '已失效' : latency + 'ms'}</span>
             </div>
           </div>
 

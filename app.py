@@ -676,9 +676,10 @@ async def keys(full: bool = False):
     out = []
     for r in rows:
         item = {"id": r[0], "source": r[1], "base_url": r[2], "masked": r[3],
-                "provider": r[4], "models": r[5], "latency_ms": r[6], "last_tested": r[7]}
+                "provider": r[4], "models": r[5], "latency_ms": r[6], "last_tested": r[7],
+                "status": r[8], "note": r[9]}
         if full:
-            item["api_key"] = r[8]
+            item["api_key"] = r[10]
         out.append(item)
     return {"count": len(out), "keys": out}
 
@@ -700,7 +701,7 @@ async def key_context(key_id: int):
 async def test_key(base_url: str = Form(...), api_key: str = Form(...)):
     """测试并重新校准 Key 连通性，成功则刷新库中记录。"""
     from probe import probe
-    from db import store_valid_key
+    from db import store_valid_key, mark_key_test_failed
 
     res = await asyncio.to_thread(probe, base_url, api_key)
     if res.get("ok"):
@@ -712,6 +713,8 @@ async def test_key(base_url: str = Form(...), api_key: str = Form(...)):
             res["models"],
             res["latency_ms"],
         )
+    else:
+        mark_key_test_failed(base_url, api_key, res.get("error"))
     return res
 
 
@@ -1330,7 +1333,7 @@ async def import_key_to_dsh(
             key_data = {
                 "id": r[0],
                 "base_url": r[2],
-                "api_key": r[8],
+                "api_key": r[10],
                 "models": [str(m).strip() for m in stored_models if str(m).strip()],
             }
             break

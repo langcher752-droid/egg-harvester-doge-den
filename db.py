@@ -124,10 +124,22 @@ def store_valid_key(source, base_url, api_key, provider, models, latency, note="
 
 def list_keys(full=False):
     c = _conn()
-    sel = "id, source, base_url, api_key_masked, provider, models, latency_ms, last_tested" + (", api_key" if full else "")
+    sel = "id, source, base_url, api_key_masked, provider, models, latency_ms, last_tested, status, note" + (", api_key" if full else "")
     rows = c.execute(f"SELECT {sel} FROM keys ORDER BY last_tested DESC").fetchall()
     c.close()
     return rows
+
+
+def mark_key_test_failed(base_url, api_key, error):
+    c = _conn()
+    now = datetime.now().isoformat(timespec="seconds")
+    cur = c.execute(
+        "UPDATE keys SET status='invalid', last_tested=?, note=? WHERE api_key_hash=? AND base_url=?",
+        (now, str(error or "测试失败")[:500], key_hash(api_key), base_url),
+    )
+    c.commit()
+    c.close()
+    return cur.rowcount
 
 
 def list_iconmemes():
