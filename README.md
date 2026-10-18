@@ -153,6 +153,33 @@ WECHAT_ATTACH_DIR=/path/to/xwechat_files/.../msg/attach
 
 未填写时微信解密功能保持关闭，不会使用仓库内的个人默认值。
 
+### 网页来源（无需登录）
+
+以下来源都是公开网页数据，只读采集、不登录、不互动，统一由 `web_watch.py` 每 6 小时跑一轮：
+
+| 模块 | 来源 | 落库 |
+|---|---|---|
+| `welfare.py` | AI 福利日报（GitHub `topics.jsonl`） | `web/welfare/topic:<id>` |
+| `baipiao.py` | 白嫖社区 Flarum API | `web/baipiao/bp:<id>` |
+| `mjjgo.py` | 买鸡鸡go Discourse API | `web/mjjgo/mjj:<id>` |
+| `gicp.py` | 羊毛站（Supabase `sites` 表，只读目录） | `web/gicp/gicp:<id>` |
+
+各模块都能单独跑（例如 `python gicp.py`），不依赖网关即可入库；提取到的 key 仍会走连通性验证。
+
+### 鸡蛋站站点库（/stations）
+
+侧栏「鸡蛋站」不再是一个外链，而是一个可维护的站点库（`stations.py` + `stations` 表）：
+
+- 手工添加：粘贴 URL 自动抓 `<title>` / `description` / favicon（存 `static/logos/`），可编辑名称、类型（鸡蛋站 / API 中转 / 论坛）、靠谱程度 1–5、备注；
+- AI 速评：调用网关给单个站点写 80–140 字速评，落 `ai_summary`；
+- 批量导入（**先勾选、再入库**）：Safari 阅读列表 / Safari 个人收藏（读 `~/Library/Safari/Bookmarks.plist`，需要给 GroupIntel.app **完全磁盘访问权限**）、Chrome/Edge/Arc 书签、羊毛站目录（Supabase `sites`）、浏览器导出的书签 HTML。点「选择」后先拉候选清单，弹窗里可搜索 / 全选 / 逐条勾选，只导入选中的；已存在的自动跳过（候选 ≤30 条默认全选，超过则默认不选，防止一次灌进几百条书签）；
+- 卡片 / 列表两种排版（右上切换，记忆在 `localStorage['stations-layout']`）；搜索 / 按类型与来源筛选；`POST /stations/enrich` 在后台串行补全缺 logo 的站点；
+- 侧栏徽标显示真实数量（鸡蛋库 / 简报 / 站点库 / 供应商 / 群文件 / 群聊），不用点进去才有数字。
+
+接口：`GET /stations`、`POST /stations/{preview,add,update,delete,refresh,summarize,import_preview,import_selected,import,import_file,import_file_preview,enrich,summarize_missing}`、`GET /stations/{enrich_status,summarize_status}`。
+
+> 供应商体检（`providers.py`）：探测时改用浏览器 UA 并修正 baseURL 拼 `/models` 的方式，避免 Cloudflare 前面的中转站因 UA 被 403 误判成「失效」；`/v1/`、`/api/paas/v4` 这类写法都能正确拼出探测地址。
+
 ### DSH Desktop
 
 鸡蛋库中的导入功能写入当前用户的 DSH Desktop profile：

@@ -116,6 +116,7 @@ def ingest():
             continue
         n_post += 1
         store.save_raw("web", "mjjgo", f"mjj:{tid}", chat_name="买鸡鸡go",
+                       sender_name="买鸡鸡go",
                        ts=_parse_ts(t.get("created_at") or ""),
                        msg_type="text", content=f"{TITLE_PREFIX} {title}\n原帖:{BASE}/t/{tid}\n正文:\n{text}",
                        raw_json=text[:4000])

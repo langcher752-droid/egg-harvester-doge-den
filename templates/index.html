@@ -1578,6 +1578,35 @@
     border-top: 1px solid var(--line-2); margin-top: 2px;
   }
   .key-card > div:last-child { margin-top: auto; }
+
+  /* 卡片 / 列表 两种排版 */
+  .keys-layout-toggle {
+    display: inline-flex; border: 1px solid #e3e8ef; border-radius: 8px; overflow: hidden; background: #fff;
+  }
+  .keys-layout-toggle button {
+    border: none; background: transparent; padding: 6px 12px; font-size: 12px; cursor: pointer; color: #64748b;
+  }
+  .keys-layout-toggle button.active { background: #eef2f7; color: var(--accent-blue, #2f7fe0); font-weight: 600; }
+  .keys-listview { display: flex; flex-direction: column; gap: 8px; }
+  .key-row {
+    display: grid; grid-template-columns: 24px minmax(0,1.7fr) minmax(0,1.1fr) 110px 86px auto;
+    align-items: center; gap: 10px;
+    background: #fff; border: 1px solid var(--line, #e3e8ef); border-radius: 10px; padding: 10px 12px;
+  }
+  .key-row:hover { border-color: #d5dbe4; }
+  .key-row .key-checkbox { margin: 0; }
+  .kr-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .kr-url { font-family: var(--font-mono); font-size: 11.5px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kr-key { font-family: var(--font-mono); font-size: 11.5px; color: #067647; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kr-source { font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kr-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .kr-actions .btn-copy { height: 26px; white-space: nowrap; }
+  .kr-actions .btn-copy.danger { color: #b42318; border-color: #f2d0cb; background: #fdf5f4; }
+  .btn-icon:disabled { opacity: .45; cursor: not-allowed; }
+  @media (max-width: 980px) {
+    .key-row { grid-template-columns: 24px minmax(0,1fr) auto; }
+    .kr-key, .kr-source, .key-row .latency-badge { display: none; }
+  }
   .model-tag { height: 20px; display: inline-flex; align-items: center; font-size: 11px; border-radius: 5px; }
   .key-log {
     font-family: var(--font-mono); font-size: 11px; line-height: 1.55;
@@ -1608,6 +1637,10 @@
   }
   .intel-header { align-items: baseline; gap: 12px; }
   .intel-title { font-size: 14px; font-weight: 600; }
+  .intel-platform-badge {
+    flex-shrink: 0; font-size: 11px; line-height: 20px; padding: 0 8px; border-radius: 999px;
+    background: #eef2f7; color: #475569; font-family: var(--font-mono);
+  }
 
   /* 供应商行 */
   #view-providers .table-card { padding: 20px 22px 22px; }
@@ -1631,6 +1664,103 @@
   #lightbox-img { cursor: url('/static/macos-kit/cursors/Zoom-In.png') 16 16, zoom-in; }
   #lightbox-img.zoomed { cursor: url('/static/macos-kit/cursors/Zoom-Out.png') 16 16, zoom-out; }
   #lightbox-img.dragging { cursor: url('/static/macos-kit/cursors/Hand--Grabbing-.png') 16 16, grabbing; }
+
+  /* ---------- 鸡蛋站（站点库） ---------- */
+  .stations-shell { padding: 16px; }
+  .stations-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .stations-toolbar .search-input { flex: 1 1 200px; min-width: 160px; }
+  .stations-toolbar #station-source-filter { flex: 0 0 auto; max-width: 132px; }
+  .stations-toolbar-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; flex: none; }
+  .stations-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .stations-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .station-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--bg-surface); display: flex; flex-direction: column; gap: 8px; }
+  .station-head { display: flex; align-items: center; gap: 10px; }
+  .station-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; background: var(--bg-surface-hover); flex: none; border: 1px solid var(--border); }
+  .station-logo-fallback { display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--accent-blue); font-size: 16px; }
+  .station-id { min-width: 0; flex: 1; }
+  .station-name { font-weight: 600; font-size: 14px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .station-host { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .station-type { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); flex: none; }
+  .station-type.type-egg { color: var(--accent-green); border-color: var(--accent-green); }
+  .station-type.type-relay { color: var(--accent-blue); border-color: var(--accent-blue); }
+  .station-type.type-forum { color: var(--accent-purple); border-color: var(--accent-purple); }
+  .station-reliability { font-size: 12px; color: var(--accent-orange); letter-spacing: 2px; display: flex; align-items: center; gap: 6px; }
+  .station-reliability .txt { letter-spacing: 0; color: var(--text-muted); font-size: 11px; }
+  .station-ai { font-size: 12px; line-height: 1.6; color: var(--text-secondary); background: var(--bg-surface-hover); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+  .station-note { font-size: 12px; color: var(--text-muted); white-space: pre-wrap; max-height: 72px; overflow: auto; }
+  .station-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+  .station-form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .station-form-row label { font-size: 12px; color: var(--text-secondary); }
+  .station-form-row input, .station-form-row select, .station-form-row textarea { width: 100%; }
+  .station-import-list { display: flex; flex-direction: column; gap: 10px; }
+  .station-import-item { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+  .station-import-item .desc { font-size: 12px; color: var(--text-muted); }
+  @media (max-width: 980px) { .stations-grid { grid-template-columns: 1fr; } }
+  /* 站点列表排版 */
+  #stations-list[data-layout="list"] { display: flex; flex-direction: column; gap: 8px; }
+  .station-row {
+    display: grid; grid-template-columns: 40px minmax(0,1.6fr) 120px 150px minmax(0,1fr) auto;
+    align-items: center; gap: 12px;
+    background: #fff; border: 1px solid var(--line, #e3e8ef); border-radius: 10px; padding: 9px 12px;
+  }
+  .station-row:hover { border-color: #d5dbe4; }
+  .station-row .station-logo, .station-row .station-logo-ph { width: 26px; height: 26px; border-radius: 6px; font-size: 12px; }
+  .sr-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .sr-name { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr-host { font-family: var(--font-mono); font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr-ai { font-size: 11.5px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .station-row .station-type { justify-self: start; }
+  .station-row .station-reliability { justify-self: start; white-space: nowrap; }
+  .sr-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .sr-actions .btn-ghost { padding: 3px 8px; font-size: 11.5px; }
+  /* 导入候选清单 */
+  .stations-pick-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .stations-pick-list { max-height: 42vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .stations-pick-row {
+    display: grid; grid-template-columns: 22px minmax(0,1.4fr) minmax(0,1fr);
+    align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid #f0f2f5; cursor: pointer; font-size: 12.5px;
+  }
+  .stations-pick-row:last-child { border-bottom: none; }
+  .stations-pick-row:hover { background: #f8fafc; }
+  .stations-pick-row input { margin: 0; }
+  .sp-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sp-host { font-family: var(--font-mono); font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Quiet secondary tools; visible overflow is always available on touch/keyboard. */
+  .entity-overflow { border:1px solid var(--border); background:var(--bg-surface); color:var(--text-secondary); border-radius:7px; cursor:pointer; font-size:20px; line-height:24px; min-width:30px; min-height:30px; flex:0 0 auto; }
+  .nav-item, .station-card, .station-row, .key-card, .key-row, .file-card, .chat-row, .provider-row, .fr-row { position:relative; }
+  .station-card > .entity-overflow, .key-card > .entity-overflow, .file-card > .entity-overflow { position:absolute; right:10px; top:10px; }
+  .station-card .station-head, .key-card .key-header, .file-card .file-info { padding-right:35px; }
+  .station-row, .key-row { padding-right:48px; }
+  .station-row > .entity-overflow, .key-row > .entity-overflow { position:absolute; right:8px; top:50%; transform:translateY(-50%); }
+  .provider-row > .entity-overflow { position:absolute; right:3px; top:3px; min-width:24px; min-height:24px; line-height:20px; }
+  .provider-row .provider-end { padding-right:20px; }
+  .ctx-menu { max-height:calc(100vh - 16px); overflow-y:auto; }
+  button.ctx-item { display:block; width:100%; text-align:left; border:0; background:transparent; color:inherit; font:inherit; }
+  .ctx-item:focus-visible, .entity-overflow:focus-visible { outline:2px solid var(--accent-blue); outline-offset:-2px; }
+  .doge-pop { pointer-events:auto; white-space:pre-line; }
+  .pop-dismiss { align-self:flex-start; border:0; background:transparent; color:var(--text-secondary); cursor:pointer; font-size:19px; padding:0 3px; }
+  #doge-pop-layer { max-height:80vh; overflow-y:auto; max-width:calc(100vw - 24px); }
+  .doge-loading { grid-column:1/-1; width:100%; min-height:240px; padding:38px 20px; text-align:center; gap:16px; white-space:pre-line; }
+  .doge-loading img { width:96px; height:96px; filter:drop-shadow(0 10px 16px rgba(15,23,42,.12)); }
+  .doge-loading .bar { width:168px; height:4px; border-radius:999px; }
+  #safari-updates-banner { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:2500; display:flex; align-items:center; gap:12px; max-width:calc(100vw - 28px); padding:12px 16px; background:var(--bg-surface); color:var(--text-primary); border:1px solid var(--border); border-radius:12px; box-shadow:0 12px 32px rgba(15,23,42,.16); font-size:13px; }
+  #safari-updates-banner[hidden] { display:none; }
+  @media (max-width:800px) {
+    .station-row { grid-template-columns:32px minmax(0,1fr) auto; gap:8px; }
+    .station-row .station-reliability, .station-row .sr-ai { grid-column:2/-1; }
+    .station-row .sr-actions { grid-column:1/-1; flex-wrap:wrap; }
+    #safari-updates-banner { flex-wrap:wrap; justify-content:center; width:max-content; }
+  }
+  @media (hover:hover) and (pointer:fine) {
+    .station-card:not(:hover):not(:focus-within) .station-actions > button:nth-child(n+3),
+    .station-row:not(:hover):not(:focus-within) .sr-actions > button:nth-child(n+3),
+    .key-card:not(:hover):not(:focus-within) .key-actions > button:nth-child(n+3),
+    .file-card:not(:hover):not(:focus-within) .file-actions > button:nth-child(n+2) { opacity:0; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .doge-loading *, .doge-pop, .doge-pop *, .entity-overflow { animation:none !important; transition:none !important; }
+    .doge-pop.out { opacity:0; }
+  }
 </style>
 
   <!-- Doge 动画增强样式 -->
@@ -1832,9 +1962,9 @@
         <span class="nav-label"><i class="ico " style="--ico:url(/static/icons/external@2x.png)"></i>Web 情报</span>
         <span class="nav-badge">web</span>
       </li>
-      <li class="nav-item" onclick="openEggStation()" title="在浏览器打开鸡蛋站">
+      <li class="nav-item" data-view="stations" onclick="switchView('stations')" title="我的鸡蛋站 / API 中转 / 论坛站点库">
         <span class="nav-label"><i class="ico " style="--ico:url(/static/icons/link@2x.png)"></i>鸡蛋站</span>
-        <span class="nav-badge">↗</span>
+        <span class="nav-badge" id="badge-stations">0</span>
       </li>
       <li class="nav-item" data-view="files" onclick="switchView('files')">
         <span class="nav-label"><i class="ico " style="--ico:url(/static/icons/files@2x.png)"></i>群文件决策</span>
@@ -1908,13 +2038,24 @@
     <!-- 1. 鸡蛋库面板 -->
     <section class="view-panel active" id="view-keys">
       <div class="toolbar">
-        <div style="display:flex; gap:10px; align-items:center;">
-          <input type="text" class="search-input" id="keys-search" placeholder="过滤 Provider 或模型名称..." oninput="filterKeys()">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="text" class="search-input" id="keys-search" placeholder="过滤 Provider / 模型 / 来源..." oninput="filterKeys()">
           <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); cursor:pointer;">
             <input type="checkbox" id="show-full-key" onchange="loadKeys()"> 显示明文 Key
           </label>
+          <div class="keys-layout-toggle" title="切换排版">
+            <button type="button" data-keys-layout="card" class="active" onclick="setKeysLayout('card')">卡片</button>
+            <button type="button" data-keys-layout="list" onclick="setKeysLayout('list')">列表</button>
+          </div>
         </div>
          <div class="batch-tools">
+           <label class="mini-check" title="勾选当前列表里的全部鸡蛋"><input type="checkbox" id="keys-select-all" onchange="toggleSelectAllKeys(this.checked)"> 全选</label>
+           <button class="btn-icon" id="btn-delete-selected" onclick="batchDeleteSelectedKeys()" disabled title="批量删除勾选的鸡蛋">
+             <i class="ico" style="--ico:url(/static/icons/trash@2x.png)"></i> 删除选中
+           </button>
+           <button class="btn-icon" id="btn-delete-invalid" onclick="batchDeleteInvalidKeys()" title="一次性删除所有失效鸡蛋">
+             <i class="ico" style="--ico:url(/static/icons/trash@2x.png)"></i> 清除失效
+           </button>
            <button class="btn-icon" id="btn-test-all-keys" onclick="testAllKeys()" title="逐个调用现有 /keys/test，不会把 Key 写入操作日志">
              <i class="ico" style="--ico:url(/static/icons/retest@2x.png)"></i> 全部检查 / 批量重新测速
            </button>
@@ -1930,7 +2071,7 @@
            <div class="batch-progress-track"><i id="keys-batch-bar"></i></div>
          </div>
        </div>
-       <div class="keys-grid" id="keys-list">
+       <div class="keys-grid" id="keys-list" data-layout="card">
         <!-- 动态生成 -->
       </div>
     </section>
@@ -1972,7 +2113,7 @@
             </div>
           </div>
           <div class="stream-toolbar">
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input type="text" class="search-input" id="stream-search" placeholder="在当前会话里搜索消息或发言人…（回车）" onkeydown="if(event.key==='Enter') reloadStream()"><div class="source-filter" id="web-source-filter"><span class="source-filter-label">Web 来源</span><button class="chip active" data-web-source="" onclick="setWebSource('')">全部</button><button class="chip" data-web-source="welfare" onclick="setWebSource('welfare')">welfare</button><button class="chip" data-web-source="baipiao" onclick="setWebSource('baipiao')">baipiao</button><button class="chip" data-web-source="mjjgo" onclick="setWebSource('mjjgo')">mjjgo</button></div></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input type="text" class="search-input" id="stream-search" placeholder="在当前会话里搜索消息或发言人…（回车）" onkeydown="if(event.key==='Enter') reloadStream()"><div class="source-filter" id="web-source-filter"><span class="source-filter-label">Web 来源</span><button class="chip active" data-web-source="" onclick="setWebSource('')">全部</button><button class="chip" data-web-source="welfare" onclick="setWebSource('welfare')">welfare</button><button class="chip" data-web-source="baipiao" onclick="setWebSource('baipiao')">baipiao</button><button class="chip" data-web-source="mjjgo" onclick="setWebSource('mjjgo')">mjjgo</button><button class="chip" data-web-source="gicp" onclick="setWebSource('gicp')">羊毛站</button></div></div>
           </div>
           <div class="stream-scroll" id="stream-scroll">
             <div class="stream-container" id="stream-list"></div>
@@ -1996,7 +2137,7 @@
             一键提炼所有群简报
           </button>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div class="source-filter" id="intel-source-filter"><span class="source-filter-label">来源</span><button class="chip active" data-intel-source="" onclick="setIntelSource('')">全部</button><button class="chip" data-intel-source="welfare" onclick="setIntelSource('welfare')">welfare</button><button class="chip" data-intel-source="baipiao" onclick="setIntelSource('baipiao')">baipiao</button><button class="chip" data-intel-source="mjjgo" onclick="setIntelSource('mjjgo')">mjjgo</button></div><a class="btn-icon" href="https://www.mjjgo.com" target="_blank" rel="noopener">打开 MJJGO ↗</a><button class="btn-icon" onclick="loadIntelSummaries()">刷新简报列表</button></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div class="source-filter" id="intel-source-filter"><span class="source-filter-label">来源</span><button class="chip active" data-intel-source="" onclick="setIntelSource('')">全部</button><button class="chip" data-intel-source="welfare" onclick="setIntelSource('welfare')">welfare</button><button class="chip" data-intel-source="baipiao" onclick="setIntelSource('baipiao')">baipiao</button><button class="chip" data-intel-source="mjjgo" onclick="setIntelSource('mjjgo')">mjjgo</button><button class="chip" data-intel-source="gicp" onclick="setIntelSource('gicp')">羊毛站</button></div><a class="btn-icon" href="https://tkkgv8.gicp.fun" target="_blank" rel="noopener">打开羊毛站 ↗</a><a class="btn-icon" href="https://www.mjjgo.com" target="_blank" rel="noopener">打开 MJJGO ↗</a><button class="btn-icon" onclick="loadIntelSummaries()">刷新简报列表</button></div>
       </div>
       <div id="events-panel" style="max-width:900px; margin:0 auto 16px auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -2075,6 +2216,42 @@
         </div>
         <div class="provider-meta" id="provider-summary">正在读取 DSH / WorkBuddy / CCswitch 配置…</div>
         <div class="provider-list" id="provider-list"></div>
+      </div>
+    </section>
+
+    <section class="view-panel" id="view-stations">
+      <div class="table-card stations-shell">
+        <div class="stations-toolbar">
+          <div class="chips" id="station-type-filter">
+            <button class="chip active" data-station-type="" onclick="setStationType('')">全部</button>
+            <button class="chip" data-station-type="egg" onclick="setStationType('egg')">鸡蛋站</button>
+            <button class="chip" data-station-type="relay" onclick="setStationType('relay')">API 中转</button>
+            <button class="chip" data-station-type="forum" onclick="setStationType('forum')">论坛</button>
+          </div>
+          <input id="station-search" class="search-input" placeholder="搜索名称 / 域名 / 备注 / 速评…" oninput="renderStations()">
+          <select id="station-source-filter" class="search-input" style="max-width:150px;" onchange="loadStations()">
+            <option value="">全部来源</option>
+            <option value="manual">手工添加</option>
+            <option value="gicp">羊毛站目录</option>
+            <option value="safari_reading">Safari 阅读列表</option>
+            <option value="safari_favorites">Safari 收藏</option>
+            <option value="chrome">浏览器书签</option>
+            <option value="bookmarks_html">书签文件</option>
+          </select>
+          <div class="keys-layout-toggle" title="切换排版">
+            <button type="button" data-stations-layout="card" onclick="setStationsLayout('card')">卡片</button>
+            <button type="button" data-stations-layout="list" onclick="setStationsLayout('list')">列表</button>
+          </div>
+          <div class="stations-toolbar-actions">
+            <a class="btn-icon" href="https://tkkgv8.gicp.fun" target="_blank" rel="noopener" title="在浏览器打开羊毛站">羊毛站 ↗</a>
+            <button class="btn-icon" onclick="showStationImport()">导入站点</button>
+            <button class="btn-icon" onclick="enrichStations()" title="给缺 logo 的站点抓取标题和图标">补全 Logo</button>
+            <button class="btn-icon" onclick="summarizeStations()" title="给缺速评的站点批量生成 AI 速评">批量速评</button>
+            <button class="btn-primary" onclick="showStationDialog()">+ 添加站点</button>
+          </div>
+        </div>
+        <div class="stations-meta" id="stations-summary">正在读取站点库…</div>
+        <div class="stations-grid" id="stations-list" data-layout="card"></div>
       </div>
     </section>
 
@@ -2216,7 +2393,7 @@
             <button class="btn-ghost" onclick="purgeCache('keep_recent', 0, 500)">只留最近 500MB</button>
             <button class="btn-danger" onclick="purgeCache('all')">全部清空</button>
           </div>
-          <div style="display:flex; gap:10px; align-items:center; margin-top:12px;">
+          <div class="directory-actions" style="display:flex; gap:10px; align-items:center; margin-top:12px;">
             <label class="field-label" style="margin:0; width:auto;">缓存目录：</label>
             <input class="text-input" id="cache-dir" style="flex:1;" placeholder="媒体目录（只读展示，改目录请用下面的下载目录设置）" readonly>
             <button class="btn-ghost" onclick="revealCacheDir()">在访达打开</button>
@@ -2402,6 +2579,8 @@
 <script>
   let currentView = 'keys';
   let cachedKeys = [];
+  let keysLayout = (localStorage.getItem('keys-layout') === 'list') ? 'list' : 'card';
+  let selectedKeyIds = new Set();
   let autoRefreshInterval = null;
   let autoRefreshSeconds = 5;
   const operationLog = [];
@@ -2520,6 +2699,7 @@
     const titles = {
       keys: ['鸡蛋库 (Verified Keys)', '自动提取并已验证连通性的高质量 API Key'],
       providers: ['供应商体检', '双击名称就地改名 · 右键更多（备注/复制/删除）· 失效可删（自动备份）'],
+      stations: ['鸡蛋站', '收录鸡蛋站 / API 中转 / 论坛 · 自动抓标题与 logo · 靠谱程度 · AI 速评'],
       stream: ['实时情报流', 'QQ / 微信 / Web 消息统一监听瀑布流 · 支持撤回保命原样追溯'],
       intel: ['结构化简报', '针对活跃群聊天内容自动生成的深度情报与要点'],
       files: ['群文件决策', '大文件按需下载决策与群聊上下文关联'],
@@ -2552,16 +2732,20 @@
     if (!force && Date.now() - lastBadgeTs < 20000) return;
     lastBadgeTs = Date.now();
     try {
-      const [k, s, f, g] = await Promise.all([
+      const [k, s, f, g, pr, st] = await Promise.all([
         fetch('/keys').then(r => r.json()).catch(() => ({})),
         fetch('/intel/summaries?limit=200').then(r => r.json()).catch(() => ({})),
         fetch('/files/list').then(r => r.json()).catch(() => ({})),
-        fetch('/groups').then(r => r.json()).catch(() => ({}))
+        fetch('/groups').then(r => r.json()).catch(() => ({})),
+        fetch('/providers').then(r => r.json()).catch(() => ({})),
+        fetch('/stations').then(r => r.json()).catch(() => ({}))
       ]);
       setNavBadge('badge-keys', (k.keys || []).length);
       setNavBadge('badge-intel', (s.summaries || []).length);
       setNavBadge('badge-files', (f.files || []).length);
       setNavBadge('badge-groups', (g.groups || []).length);
+      setNavBadge('badge-providers', (pr.providers || []).length);
+      setNavBadge('badge-stations', (st.stations || []).length);
     } catch (e) {}
   }
 
@@ -2575,6 +2759,7 @@
     else if (currentView === 'groups') loadGroups();
     else if (currentView === 'settings') { loadSettings(); loadCacheStats(); }
     else if (currentView === 'providers') loadProviders();
+    else if (currentView === 'stations') loadStations();
   }
 
   // 重要事件：加载列表 + 手动检测
@@ -2704,27 +2889,55 @@
     },
 
     // 右下角反应卡（替代纯文字 toast）
-    pop(mood, text, ms = 2400) {
+    pop(mood, text, ms = 7000) {
       const layer = document.getElementById('doge-pop-layer');
       if (!layer) return;
       const tone = ['fail', 'invalid', 'error', 'loginfail', 'delete'].includes(mood) ? 'bad'
                  : ['success', 'ok', 'valid', 'saved', 'added', 'allpass', 'logindone'].includes(mood) ? 'ok' : '';
       const el = document.createElement('div');
       el.className = 'doge-pop ' + tone;
-      el.innerHTML = `<img src="${this.path(mood)}" ${this.anim(mood)} alt=""><div class="t">${esc(text)}</div>`;
+      el.setAttribute('role', 'status');
+      el.innerHTML = `<img src="${this.path(mood)}" ${this.anim(mood)} alt=""><div class="t">${esc(text)}</div><button type="button" class="pop-dismiss" aria-label="关闭通知">×</button>`;
       layer.appendChild(el);
-      setTimeout(() => {
+      let remaining = typeof ms === 'number' ? Math.max(6000, ms) : 7000;
+      let started, timer, dismissed = false;
+      const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        clearTimeout(timer);
         el.classList.add('out');
         setTimeout(() => el.remove(), 240);
-      }, ms);
+      };
+      const pause = () => { if (!timer) return; clearTimeout(timer); timer = null; remaining = Math.max(0, remaining - (performance.now() - started)); };
+      const resume = () => {
+        if (dismissed || el.matches(':hover') || el.contains(document.activeElement)) return;
+        started = performance.now();
+        clearTimeout(timer);
+        timer = setTimeout(dismiss, remaining);
+      };
+      el.addEventListener('mouseenter', pause);
+      el.addEventListener('mouseleave', resume);
+      el.addEventListener('focusin', pause);
+      el.addEventListener('focusout', () => setTimeout(resume, 0));
+      el.querySelector('.pop-dismiss').addEventListener('click', dismiss);
+      started = performance.now();
+      resume();
       return el;
     },
 
     // 面板加载态（塞进任意容器）
     loading(host, text = '正在加载…') {
       if (!host) return;
-      host.innerHTML = `<div class="doge-loading"><img src="${this.path('loading')}" alt="">
+      host._dogeLoadingStarted = performance.now();
+      const content = `<div class="doge-loading" role="status"><img src="${this.path('loading')}" alt="">
         <div>${esc(text)}</div><div class="bar"><i></i></div></div>`;
+      host.innerHTML = host.tagName === 'TBODY' ? `<tr><td colspan="20">${content}</td></tr>` : content;
+    },
+
+    async settle(host) {
+      if (!host?._dogeLoadingStarted) return;
+      const remaining = 600 - (performance.now() - host._dogeLoadingStarted);
+      if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
     },
 
     // 顶部跑狗进度（长时间任务用）
@@ -2907,12 +3120,13 @@
   async function loadKeys(silent) {
     const full = document.getElementById('show-full-key').checked;
     const listEl = document.getElementById('keys-list');
-    if (!silent && listEl && !listEl.querySelector('.key-card') && !listEl.dataset.emptyShown) {
+    if (!silent && listEl && !listEl.querySelector('.key-card, .key-row') && !listEl.dataset.emptyShown) {
       DogeUI.loading(listEl, 'Doge 正在翻蛋筐…');
     }
     try {
       const res = await fetch(`/keys?full=${full}`);
       const data = await res.json();
+      await DogeUI.settle(listEl);
       cachedKeys = data.keys || [];
       document.getElementById('stat-keys').textContent = cachedKeys.length;
       setNavBadge('badge-keys', cachedKeys.length);
@@ -2922,42 +3136,27 @@
     }
   }
 
-  function renderKeys(keys) {
-    const el = document.getElementById('keys-list');
-    if (!keys || keys.length === 0) {
-      el.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
-        <img class="empty-mascot mascot-anim ma-bounce" data-mascot src="/static/brand/glyph-128.png" alt="">
-        <div class="empty-title">暂无入库鸡蛋</div>
-        <div class="empty-sub">请在群聊监控里等它冒出来，或者用左侧「快速手工收割」粘贴一段含 key 的文本 / 截图。</div>
-      </div>`;
-      document.getElementById('keys-stats-summary').textContent = `共 0 个可用通道`;
-      el.dataset.emptyShown = '1';
-      return;
-    }
+  function keysCardHtml(k, idx) {
+    let models = [];
+    try {
+      models = typeof k.models === 'string' ? JSON.parse(k.models) : (k.models || []);
+    } catch(e) { models = []; }
+    window.__keysModelsCount = (window.__keysModelsCount || 0) + models.length;
 
-    let allModelsCount = 0;
-    const cardsHtml = keys.map((k, idx) => {
-      let models = [];
-      try {
-        models = typeof k.models === 'string' ? JSON.parse(k.models) : (k.models || []);
-      } catch(e) { models = []; }
-      allModelsCount += models.length;
+    const latency = k.latency_ms || 0;
+    let latencyClass = 'latency-fast';
+    if (latency > 2000) latencyClass = 'latency-slow';
+    else if (latency > 1000) latencyClass = 'latency-medium';
 
-      const latency = k.latency_ms || 0;
-      let latencyClass = 'latency-fast';
-      if (latency > 2000) latencyClass = 'latency-slow';
-      else if (latency > 1000) latencyClass = 'latency-medium';
+    const keyVal = k.api_key || k.masked || '';
+    const displayKey = k.api_key ? k.api_key : k.masked;
+    const modelsTags = models.map(m => `<span class="model-tag" onclick="copyText('${esc(m)}')">${esc(m)}</span>`).join('');
 
-      const keyVal = k.api_key || k.masked || '';
-      const displayKey = k.api_key ? k.api_key : k.masked;
-
-      const modelsTags = models.map(m => `<span class="model-tag" onclick="copyText('${esc(m)}')">${esc(m)}</span>`).join('');
-
-      return `
+    return `
         <div class="key-card" data-provider="${esc(k.provider)}" data-source="${esc(k.source)}" data-key-id="${k.id}">
           <div class="key-header">
             <div style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" class="key-checkbox" data-key-id="${k.id}" data-base-url="${esc(k.base_url)}" data-key-val="${esc(keyVal)}" data-provider="${esc(k.provider)}" data-models='${JSON.stringify(models)}'>
+              <input type="checkbox" class="key-checkbox" data-key-id="${k.id}" data-base-url="${esc(k.base_url)}" data-key-val="${esc(keyVal)}" data-provider="${esc(k.provider)}" data-models='${JSON.stringify(models)}' onchange="onKeyCheckChange(this)">
               ${DogeUI.face(k.status === 'invalid' ? 'invalid' : 'valid', 'sm')}
               <span class="provider-badge">${esc(k.provider || 'OpenAI 兼容')}</span>
             </div>
@@ -3004,10 +3203,151 @@
           </div>
         </div>
       `;
-    }).join('');
+  }
 
-    el.innerHTML = cardsHtml;
-    document.getElementById('keys-stats-summary').textContent = `共 ${keys.length} 个通道 · 覆盖 ${allModelsCount} 个模型`;
+  function keysRowHtml(k, idx) {
+    let models = [];
+    try {
+      models = typeof k.models === 'string' ? JSON.parse(k.models) : (k.models || []);
+    } catch(e) { models = []; }
+    window.__keysModelsCount = (window.__keysModelsCount || 0) + models.length;
+
+    const latency = k.latency_ms || 0;
+    let latencyClass = 'latency-fast';
+    if (latency > 2000) latencyClass = 'latency-slow';
+    else if (latency > 1000) latencyClass = 'latency-medium';
+    const keyVal = k.api_key || k.masked || '';
+
+    return `
+      <div class="key-row" data-key-id="${k.id}" data-provider="${esc(k.provider)}" data-source="${esc(k.source)}">
+        <input type="checkbox" class="key-checkbox" data-key-id="${k.id}" data-base-url="${esc(k.base_url)}" data-key-val="${esc(keyVal)}" data-provider="${esc(k.provider)}" data-models='${JSON.stringify(models)}' onchange="onKeyCheckChange(this)">
+        <div class="kr-main">
+          <span class="provider-badge">${esc(k.provider || 'OpenAI 兼容')}</span>
+          <span class="kr-url" title="${esc(k.base_url)}">${esc(k.base_url || 'https://api.openai.com/v1')}</span>
+        </div>
+        <span class="kr-key" title="${esc(keyVal)}">${esc(k.api_key ? k.api_key : k.masked)}</span>
+        <span class="kr-source">${esc(k.source || '')}</span>
+        <span class="latency-badge ${latencyClass}">${k.status === 'invalid' ? '已失效' : latency + 'ms'}</span>
+        <div class="kr-actions">
+          <button class="btn-copy" onclick="copyText('${esc(keyVal)}')">复制 Key</button>
+          <button class="btn-copy" onclick="retestKey(${k.id}, '${esc(k.base_url)}', '${esc(keyVal)}')">测速</button>
+          <button class="btn-copy danger" onclick="confirmDeleteKey(${k.id}, '${esc(k.provider || k.base_url)}')">删除</button>
+        </div>
+      </div>`;
+  }
+
+  function renderKeys(keys) {
+    const el = document.getElementById('keys-list');
+    applyKeysLayout(el);
+    if (!keys || keys.length === 0) {
+      el.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+        <img class="empty-mascot mascot-anim ma-bounce" data-mascot src="/static/brand/glyph-128.png" alt="">
+        <div class="empty-title">暂无入库鸡蛋</div>
+        <div class="empty-sub">请在群聊监控里等它冒出来，或者用左侧「快速手工收割」粘贴一段含 key 的文本 / 截图。</div>
+      </div>`;
+      document.getElementById('keys-stats-summary').textContent = `共 0 个可用通道`;
+      el.dataset.emptyShown = '1';
+      updateKeysSelectionUI();
+      return;
+    }
+
+    window.__keysModelsCount = 0;
+    el.innerHTML = keys.map((k, idx) => keysLayout === 'list' ? keysRowHtml(k, idx) : keysCardHtml(k, idx)).join('');
+    const total = window.__keysModelsCount || 0;
+    document.getElementById('keys-stats-summary').textContent = `共 ${keys.length} 个通道 · 覆盖 ${total} 个模型`;
+    syncKeyCheckboxes();
+  }
+
+  // 卡片 / 列表排版切换（记忆到 localStorage）
+  function applyKeysLayout(el) {
+    if (!el) el = document.getElementById('keys-list');
+    if (!el) return;
+    el.classList.toggle('keys-grid', keysLayout !== 'list');
+    el.classList.toggle('keys-listview', keysLayout === 'list');
+    el.dataset.layout = keysLayout;
+    document.querySelectorAll('[data-keys-layout]').forEach(b => b.classList.toggle('active', b.dataset.keysLayout === keysLayout));
+  }
+
+  function setKeysLayout(layout) {
+    keysLayout = layout === 'list' ? 'list' : 'card';
+    localStorage.setItem('keys-layout', keysLayout);
+    renderKeys(cachedKeys);
+  }
+
+  // 批量选择
+  function onKeyCheckChange(cb) {
+    const id = String(cb.dataset.keyId);
+    if (cb.checked) selectedKeyIds.add(id); else selectedKeyIds.delete(id);
+    updateKeysSelectionUI();
+  }
+
+  function syncKeyCheckboxes() {
+    document.querySelectorAll('#keys-list .key-checkbox').forEach(cb => {
+      cb.checked = selectedKeyIds.has(String(cb.dataset.keyId));
+    });
+    updateKeysSelectionUI();
+  }
+
+  function updateKeysSelectionUI() {
+    const n = selectedKeyIds.size;
+    const btn = document.getElementById('btn-delete-selected');
+    if (btn) {
+      btn.disabled = n === 0;
+      btn.childNodes.forEach(node => {
+        if (node.nodeType === 3 && node.textContent.trim()) node.textContent = n ? ` 删除选中 (${n})` : ' 删除选中';
+      });
+    }
+    const boxes = [...document.querySelectorAll('#keys-list .key-checkbox')];
+    const all = document.getElementById('keys-select-all');
+    if (all) {
+      const checkedCount = boxes.filter(b => b.checked).length;
+      all.checked = boxes.length > 0 && checkedCount === boxes.length;
+      all.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+    }
+  }
+
+  function toggleSelectAllKeys(checked) {
+    document.querySelectorAll('#keys-list .key-checkbox').forEach(cb => {
+      cb.checked = !!checked;
+      const id = String(cb.dataset.keyId);
+      if (checked) selectedKeyIds.add(id); else selectedKeyIds.delete(id);
+    });
+    updateKeysSelectionUI();
+  }
+
+  async function batchDeleteSelectedKeys() {
+    const ids = [...selectedKeyIds];
+    if (!ids.length) { toast('先勾选要删除的鸡蛋'); return; }
+    showConfirm('批量删除鸡蛋', `确定删除选中的 ${ids.length} 个鸡蛋吗？删除后不可恢复。`, '删除', '取消', async () => {
+      try {
+        const fd = new FormData();
+        fd.append('key_ids', ids.join(','));
+        const r = await fetch('/keys/delete_batch', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.ok) {
+          selectedKeyIds.clear();
+          toast(`已删除 ${d.deleted} 个鸡蛋`);
+          loadKeys(true); loadStats(); updateBadges(true);
+        } else toast('删除失败: ' + (d.error || '未知错误'), 'fail');
+      } catch(e) { toast('删除异常: ' + e.message, 'fail'); }
+    });
+  }
+
+  async function batchDeleteInvalidKeys() {
+    let invalidCount = 0;
+    try {
+      const r = await fetch('/keys');
+      const d = await r.json();
+      invalidCount = (d.keys || []).filter(k => k.status && k.status !== 'valid').length;
+    } catch(e) {}
+    showConfirm('清除失效鸡蛋', invalidCount ? `当前有 ${invalidCount} 个失效鸡蛋，确定全部删除吗？` : '当前没有失效鸡蛋，仍要执行一次清理吗？', '删除', '取消', async () => {
+      try {
+        const r = await fetch('/keys/delete_invalid', { method: 'POST' });
+        const d = await r.json();
+        toast(d.deleted ? `已清除 ${d.deleted} 个失效鸡蛋` : '没有失效鸡蛋需要清除');
+        loadKeys(true); loadStats(); updateBadges(true);
+      } catch(e) { toast('清除失败: ' + e.message, 'fail'); }
+    });
   }
 
   function filterKeys() {
@@ -3384,6 +3724,7 @@
     const text = String(m.content || '').toLowerCase();
     if (key.startsWith('bp:') || /baipiao\.org/.test(text)) return 'baipiao';
     if (key.startsWith('mjj:') || /mjjgo\.com/.test(text)) return 'mjjgo';
+    if (key.startsWith('gicp:') || /gicp\.fun/.test(text) || text.includes('[羊毛站]')) return 'gicp';
     return 'welfare';
   }
   function setWebSource(source) {
@@ -3496,10 +3837,13 @@
     const search = document.getElementById('stream-search').value.trim();
     const recalledOnly = document.getElementById('stream-recalled-only').checked;
     const hideSticker = document.getElementById('stream-hide-sticker').checked;
-    const limit = document.getElementById('stream-limit').value || 50;
+    let limit = document.getElementById('stream-limit').value || 50;
+    // 只看某个 Web 来源时放大拉取量（站点消息时间跨度大，50 条常常装不下）
+    if (webSource) limit = Math.max(Number(limit) || 50, 500);
     let url = `/messages?limit=${limit}`;
     if (currentChat.platform) url += `&platform=${encodeURIComponent(currentChat.platform)}`;
     if (currentChat.chat_id) url += `&chat_id=${encodeURIComponent(currentChat.chat_id)}`;
+    else if (webSource) url += `&platform=web&chat_id=${encodeURIComponent(webSource)}`;
     if (search) url += `&q=${encodeURIComponent(search)}`;
     if (recalledOnly) url += `&only_recalled=true`;
     if (hideSticker) url += `&exclude_sticker=true`;
@@ -3821,18 +4165,46 @@
   }
 
   // 4. 结构化简报 (Intel)
+  function intelPlatformLabel(s) {
+    const p = String(s.platform || '').toLowerCase();
+    if (p === 'web') {
+      // 有具体来源名时标题就是它，徽标只写 Web；没有名才补 chat_id
+      if (s.chat_name) return 'Web';
+      const names = { gicp: '羊毛站' };
+      const cid = String(s.chat_id || '');
+      return 'Web · ' + (names[cid] || cid);
+    }
+    if (p === 'qq') return 'QQ';
+    if (p === 'wechat') return '微信';
+    return p || '来源';
+  }
+
+  let intelLoadSeq = 0;
   async function loadIntelSummaries() {
     const el = document.getElementById('intel-list');
+    // 快速切换来源时会有多个请求并发返回，用序号丢弃过期响应，避免旧结果覆盖新筛选
+    const seq = ++intelLoadSeq;
+    const src = intelSource;
     DogeUI.loading(el, 'Doge 正在翻简报目录…');
 
     try {
-      const res = await fetch('/intel/summaries?limit=30');
+      const res = await fetch('/intel/summaries?limit=60');
       const data = await res.json();
-       const summaries = (data.summaries || []).filter(s => !intelSource || (s.platform !== 'web' && intelSource === 'welfare') || String(s.source || s.web_source || '').toLowerCase() === intelSource || String(s.chat_id || '').toLowerCase().includes(intelSource));
-      setNavBadge('badge-intel', summaries.length);
+      await DogeUI.settle(el);
+      if (seq !== intelLoadSeq) return;
+       // 来源筛选：web 简报的 chat_id 就是来源名（welfare / baipiao / mjjgo / gicp）
+       const allSummaries = data.summaries || [];
+       const summaries = allSummaries.filter(s =>
+         !src || (String(s.platform || '').toLowerCase() === 'web'
+           && String(s.chat_id || '').toLowerCase() === src)
+       );
+      // 侧栏徽标永远显示简报总数，不随筛选变化
+      setNavBadge('badge-intel', allSummaries.length);
 
       if (!summaries.length) {
-        el.innerHTML = '<div style="text-align:center;padding:60px 0;color:var(--text-muted);max-width:900px;margin:auto;">暂无情报简报，请点击上方「一键提炼所有群简报」生成。</div>';
+        el.innerHTML = src
+          ? `<div style="text-align:center;padding:60px 0;color:var(--text-muted);max-width:900px;margin:auto;">来源「${esc(src)}」暂无简报。<br>点一下上方「全部」看其他简报，或选择时间窗口后点「一键提炼所有群简报」。</div>`
+          : '<div style="text-align:center;padding:60px 0;color:var(--text-muted);max-width:900px;margin:auto;">暂无情报简报，请点击上方「一键提炼所有群简报」生成。</div>';
         return;
       }
 
@@ -3855,7 +4227,10 @@
         return `
           <div class="intel-card">
             <div class="intel-header">
-              <div class="intel-title">${esc(s.chat_name || s.group_name || s.chat_id)}</div>
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                <span class="intel-platform-badge">${esc(intelPlatformLabel(s))}</span>
+                <div class="intel-title">${esc(s.chat_name || s.group_name || s.chat_id)}</div>
+              </div>
               <div style="font-size:12px;color:var(--text-muted);">${esc(createdStr)} · ${esc(fmtWindow(s.window_start, s.window_end))} · ${s.message_count} 条消息</div>
             </div>
             ${tagBadges ? `<div class="intel-tags">${tagBadges}</div>` : ''}
@@ -4172,6 +4547,8 @@
     } else if (key.startsWith('mjj:')) {
       const id = key.slice(4);
       if (/^\d+$/.test(id)) href = `https://www.mjjgo.com/t/${id}`;
+    } else if (key.startsWith('gicp:')) {
+      href = 'https://tkkgv8.gicp.fun';
     }
     if (!href) return '';
     return ` <a class="msg-link post-link" href="${href}" target="_blank"
@@ -4202,6 +4579,7 @@
     DogeUI.loading(el, 'Doge 在盘点 DSH / WorkBuddy / cc-switch 的供应商…');
     try {
       const d = await (await fetch('/providers')).json();
+      await DogeUI.settle(el);
       providerData = d.providers || [];
       setNavBadge('badge-providers', providerData.length);
       renderProviders();
@@ -4507,6 +4885,7 @@
     DogeUI.loading(el, 'Doge 在清点缓存…');
     try {
       const d = await (await fetch('/cache/stats')).json();
+      await DogeUI.settle(el);
       const mb = (d.bytes / 1048576).toFixed(1);
       const types = Object.entries(d.by_type || {}).slice(0, 4)
         .map(([k, v]) => `${k} ${(v.bytes / 1048576).toFixed(1)}MB`).join(' · ');
@@ -4743,6 +5122,7 @@
     DogeUI.loading(box, 'Doge 在读日志…');
     try {
       const d = await (await fetch(`/logs?name=${encodeURIComponent(name)}&lines=200`)).json();
+      await DogeUI.settle(box);
       if (d.error) { box.textContent = d.error; return; }
       box.textContent = (d.lines || []).join('\n') || '（日志为空）';
       box.scrollTop = box.scrollHeight;
@@ -4773,6 +5153,7 @@
     try {
       const res = await fetch('/groups');
       const data = await res.json();
+      await DogeUI.settle(tbody);
       const groups = data.groups || [];
       setNavBadge('badge-groups', groups.length);
       if (diag) diag.innerHTML = `<span class="diagnostic-text">群管理接口正常 · ${groups.length} 个群 · ${groups.filter(g => g.enabled).length} 个监听中</span><button class="btn-ghost" onclick="loadGroups()">重试</button>`;
@@ -4912,6 +5293,7 @@
           `;
         }
       }
+      await DogeUI.settle(tbody);
       tbody.innerHTML = html;
     } catch(e) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--accent-red);">加载失败</td></tr>';
@@ -4959,6 +5341,7 @@
 
       const res = await fetch('/harvest', { method: 'POST', body: fd });
       const data = await res.json();
+      await DogeUI.settle(out);
 
       let validCount = 0;
       const blocks = (data.results || []).map(r => {
@@ -4980,7 +5363,9 @@
           </div>`;
       });
 
-      const head = `<div class="h-title">提取到 ${data.count || 0} 个候选 · 有效 ${validCount} 个</div>`;
+      const ignored = data.ignored || 0;
+      const head = `<div class="h-title">提取到 ${data.count || 0} 个候选 · 有效 ${validCount} 个</div>`
+        + (ignored ? `<div class="h-trace" style="margin-top:4px;">已忽略 ${ignored} 条视频 / 公众号文章 / 分享链接（这类链接不是 API 接口，不会被当作鸡蛋）</div>` : '');
       out.innerHTML = blocks.length
         ? head + blocks.join('')
         : head + '<div class="h-trace" style="margin-top:6px;">未发现合法的 OpenAI 兼容 Key（可粘贴 `base_url|sk-xxx` 或带 Key 的截图）</div>';
@@ -5501,6 +5886,610 @@
     } catch (error) { toast('iconmeme 删除失败：' + error.message, 'fail'); }
   }
 
+  // ==================== 鸡蛋站（站点库） ====================
+  let stationsCache = [];
+  let stationType = '';
+  let stationsLayout = (localStorage.getItem('stations-layout') === 'list') ? 'list' : 'card';
+  let stationEditingId = 0;
+
+  function stationHost(url) {
+    return String(url || '').replace(/^https?:\/\//i, '').split('/')[0];
+  }
+
+  function stationTypeLabel(t) {
+    return ({ egg: '鸡蛋站', relay: 'API 中转', forum: '论坛' })[t] || '鸡蛋站';
+  }
+
+  function reliabilityDots(n) {
+    const v = Math.max(1, Math.min(5, Number(n) || 3));
+    return '●'.repeat(v) + '○'.repeat(5 - v);
+  }
+
+  function stationLogoHtml(s) {
+    const host = stationHost(s.url);
+    const initial = esc(String(s.name || host || '?').trim().slice(0, 1).toUpperCase());
+    if (s.logo) {
+      return `<img class="station-logo" src="${esc(s.logo)}" alt=""
+                 onerror="this.style.display='none';var n=this.nextElementSibling;if(n)n.style.display='flex';">
+              <span class="station-logo station-logo-fallback" style="display:none">${initial}</span>`;
+    }
+    return `<span class="station-logo station-logo-fallback">${initial}</span>`;
+  }
+
+  async function loadStations(silent) {
+    const el = document.getElementById('stations-list');
+    if (!el) return;
+    try {
+      const src = document.getElementById('station-source-filter')?.value || '';
+      const res = await fetch('/stations?type=' + encodeURIComponent(stationType) + '&source=' + encodeURIComponent(src));
+      const data = await res.json();
+      stationsCache = data.stations || [];
+      renderStations();
+      if (!src) setNavBadge('badge-stations', stationsCache.length);
+    } catch (e) {
+      if (!silent) toast('加载站点库失败');
+    }
+  }
+
+  function setStationType(t) {
+    stationType = t || '';
+    document.querySelectorAll('[data-station-type]').forEach(b =>
+      b.classList.toggle('active', (b.dataset.stationType || '') === stationType));
+    loadStations();
+  }
+
+  function renderStations() {
+    const el = document.getElementById('stations-list');
+    if (!el) return;
+    const q = (document.getElementById('station-search')?.value || '').trim().toLowerCase();
+    let items = stationsCache;
+    if (q) {
+      items = items.filter(s => [s.name, s.url, s.note, s.ai_summary, s.intro, s.title]
+        .some(v => String(v || '').toLowerCase().includes(q)));
+    }
+    const count = { egg: 0, relay: 0, forum: 0 };
+    stationsCache.forEach(s => { count[s.type] = (count[s.type] || 0) + 1; });
+    const meta = document.getElementById('stations-summary');
+    if (meta) {
+      meta.textContent = `共 ${stationsCache.length} 个站点 · 鸡蛋站 ${count.egg || 0} · API 中转 ${count.relay || 0} · 论坛 ${count.forum || 0}` +
+        (q ? ` · 筛选出 ${items.length} 个` : '');
+    }
+    applyStationsLayout(el);
+    if (!items.length) {
+      el.innerHTML = `<div style="padding:50px 0;text-align:center;color:var(--text-muted);font-size:13px;">
+        还没有站点。点右上「+ 添加站点」，或「导入站点」从 Safari 阅读列表 / 收藏 / 浏览器书签 / 羊毛站目录批量导入。</div>`;
+      return;
+    }
+    if (stationsLayout === 'list') {
+      el.innerHTML = items.map(stationRowHtml).join('');
+      return;
+    }
+    el.innerHTML = items.map(s => {
+      const host = stationHost(s.url);
+      const ai = s.ai_summary
+        ? `<div class="station-ai">${esc(s.ai_summary)}</div>`
+        : `<div class="station-ai" style="color:var(--text-muted)">还没有 AI 速评，点「AI 速评」生成。</div>`;
+      const note = s.note ? `<div class="station-note">${esc(s.note)}</div>` : '';
+      return `
+        <div class="station-card" data-station-id="${s.id}">
+          <div class="station-head">
+            ${stationLogoHtml(s)}
+            <div class="station-id">
+              <div class="station-name" title="${esc(s.name || host)}">${esc(s.name || host)}</div>
+              <div class="station-host" title="${esc(s.url)}">${esc(host)}</div>
+            </div>
+            <span class="station-type type-${esc(s.type || 'egg')}">${esc(stationTypeLabel(s.type))}</span>
+          </div>
+          <div class="station-reliability">${reliabilityDots(s.reliability)}<span class="txt">靠谱程度 ${s.reliability || 3}/5</span></div>
+          ${ai}
+          ${note}
+          <div class="station-actions">
+            <button class="btn-ghost" onclick="window.open('${esc(s.url)}','_blank','noopener')">打开 ↗</button>
+            <button class="btn-ghost" data-act="sum" onclick="summarizeStation(${s.id}, this)">AI 速评</button>
+            <button class="btn-ghost" data-act="refresh" onclick="refreshStation(${s.id}, this)">重新抓取</button>
+            <button class="btn-ghost" onclick="showStationDialog(${s.id})">编辑</button>
+            <button class="btn-ghost" style="color:var(--accent-red)" onclick="deleteStationConfirm(${s.id})">删除</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function applyStationsLayout(el) {
+    const box = el || document.getElementById('stations-list');
+    if (box) box.dataset.layout = stationsLayout;
+    document.querySelectorAll('[data-stations-layout]').forEach(b =>
+      b.classList.toggle('active', (b.dataset.stationsLayout || 'card') === stationsLayout));
+  }
+
+  function setStationsLayout(layout) {
+    stationsLayout = layout === 'list' ? 'list' : 'card';
+    localStorage.setItem('stations-layout', stationsLayout);
+    renderStations();
+  }
+
+  function stationRowHtml(k) {
+    const host = stationHost(k.url);
+    const ai = (k.ai_summary || '').replace(/\s+/g, ' ').slice(0, 90);
+    return `
+      <div class="station-row" data-station-id="${k.id}">
+        ${stationLogoHtml(k)}
+        <div class="sr-main">
+          <div class="sr-name" title="${esc(k.name || host)}">${esc(k.name || host)}</div>
+          <div class="sr-host" title="${esc(k.url)}">${esc(host)}</div>
+        </div>
+        <span class="station-type type-${esc(k.type || 'egg')}">${esc(stationTypeLabel(k.type))}</span>
+        <div class="station-reliability">${reliabilityDots(k.reliability)}<span class="txt">${k.reliability || 3}/5</span></div>
+        <div class="sr-ai" title="${esc(k.ai_summary || '')}">${esc(ai || '—')}</div>
+        <div class="sr-actions">
+          <button class="btn-ghost" onclick="window.open('${esc(k.url)}','_blank','noopener')">打开 ↗</button>
+          <button class="btn-ghost" data-act="sum" onclick="summarizeStation(${k.id}, this)">速评</button>
+          <button class="btn-ghost" onclick="showStationDialog(${k.id})">编辑</button>
+          <button class="btn-ghost" style="color:var(--accent-red)" onclick="deleteStationConfirm(${k.id})">删</button>
+        </div>
+      </div>`;
+  }
+
+  function ensureStationModal() {
+    if (document.getElementById('station-modal')) return;
+    const div = document.createElement('div');
+    div.id = 'station-modal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;align-items:center;justify-content:center;';
+    div.innerHTML = `
+      <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;width:92%;max-width:560px;max-height:86vh;overflow:hidden;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <h3 id="station-modal-title" style="font-size:15px;font-weight:600;margin:0;">添加站点</h3>
+          <span class="modal-x" onclick="closeStationDialog()" style="cursor:pointer;">✕</span>
+        </div>
+        <div style="padding:16px 20px;overflow-y:auto;">
+          <div class="station-form-row">
+            <label>站点地址（粘贴后自动抓标题和 logo）</label>
+            <input id="st-url" class="search-input" placeholder="https://example.com" onblur="previewStationUrl()">
+            <div id="st-preview" style="font-size:12px;color:var(--text-muted);min-height:16px;"></div>
+          </div>
+          <div class="station-form-row">
+            <label>名称</label>
+            <input id="st-name" class="search-input" placeholder="留空则用网页标题">
+          </div>
+          <div class="station-form-row">
+            <label>站点类型</label>
+            <select id="st-type" class="search-input">
+              <option value="egg">鸡蛋站</option>
+              <option value="relay">API 中转</option>
+              <option value="forum">论坛</option>
+            </select>
+          </div>
+          <div class="station-form-row">
+            <label>靠谱程度</label>
+            <select id="st-reliability" class="search-input">
+              <option value="1">1 · 可疑</option>
+              <option value="2">2 · 一般</option>
+              <option value="3" selected>3 · 还行</option>
+              <option value="4">4 · 靠谱</option>
+              <option value="5">5 · 很稳</option>
+            </select>
+          </div>
+          <div class="station-form-row">
+            <label>备注（价格 / 邀请码 / 坑点…）</label>
+            <textarea id="st-note" class="search-input" rows="3" style="resize:vertical;"></textarea>
+          </div>
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn-action" style="background:var(--bg-surface-hover);" onclick="closeStationDialog()">取消</button>
+          <button class="btn-primary" onclick="saveStation()">保存</button>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+  }
+
+  function showStationDialog(id) {
+    ensureStationModal();
+    stationEditingId = id || 0;
+    const st = id ? stationsCache.find(s => s.id === id) : null;
+    document.getElementById('station-modal-title').textContent = st ? '编辑站点' : '添加站点';
+    document.getElementById('st-url').value = st ? st.url : '';
+    document.getElementById('st-url').disabled = !!st;
+    document.getElementById('st-name').value = st ? (st.name || '') : '';
+    document.getElementById('st-type').value = st ? (st.type || 'egg') : 'egg';
+    document.getElementById('st-reliability').value = String(st ? (st.reliability || 3) : 3);
+    document.getElementById('st-note').value = st ? (st.note || '') : '';
+    document.getElementById('st-preview').innerHTML = st && st.logo
+      ? `<img src="${esc(st.logo)}" style="width:20px;height:20px;border-radius:4px;vertical-align:-4px;margin-right:6px;">${esc(st.title || st.intro || '')}`
+      : '';
+    document.getElementById('station-modal').style.display = 'flex';
+    if (!st) setTimeout(() => document.getElementById('st-url').focus(), 50);
+  }
+
+  function closeStationDialog() {
+    const m = document.getElementById('station-modal');
+    if (m) m.style.display = 'none';
+  }
+
+  async function previewStationUrl() {
+    const url = (document.getElementById('st-url').value || '').trim();
+    const box = document.getElementById('st-preview');
+    if (!url) { box.innerHTML = ''; return; }
+    box.textContent = '正在抓取标题和 logo…';
+    try {
+      const fd = new FormData();
+      fd.append('url', url);
+      const res = await fetch('/stations/preview', { method: 'POST', body: fd });
+      const j = await res.json();
+      const m = j.meta || {};
+      if (!j.ok) { box.textContent = '抓取失败：' + (m.error || '未知错误') + '（仍可手动填写名称保存）'; return; }
+      if (!document.getElementById('st-name').value.trim() && m.title) {
+        document.getElementById('st-name').value = m.title;
+      }
+      box.innerHTML = `${m.logo ? `<img src="${esc(m.logo)}" style="width:20px;height:20px;border-radius:4px;vertical-align:-4px;margin-right:6px;">` : ''}` +
+        `<b>${esc(m.title || '')}</b>${m.intro ? ' · ' + esc(String(m.intro).slice(0, 80)) : ''}`;
+    } catch (e) {
+      box.textContent = '抓取失败：' + e.message;
+    }
+  }
+
+  async function saveStation() {
+    const url = (document.getElementById('st-url').value || '').trim();
+    const name = (document.getElementById('st-name').value || '').trim();
+    const type = document.getElementById('st-type').value;
+    const reliability = document.getElementById('st-reliability').value;
+    const note = document.getElementById('st-note').value || '';
+    if (!stationEditingId && !url) { toast('先填站点地址'); return; }
+    try {
+      const fd = new FormData();
+      if (stationEditingId) {
+        fd.append('id', stationEditingId);
+        fd.append('name', name);
+        fd.append('type', type);
+        fd.append('reliability', reliability);
+        fd.append('note', note);
+        const res = await fetch('/stations/update', { method: 'POST', body: fd });
+        const j = await res.json();
+        if (!j.ok) { toast('保存失败：' + (j.error || '')); return; }
+        toast('已保存');
+      } else {
+        fd.append('url', url);
+        fd.append('name', name);
+        fd.append('type', type);
+        fd.append('reliability', reliability);
+        fd.append('note', note);
+        fd.append('auto_meta', name ? '1' : '1');
+        const res = await fetch('/stations/add', { method: 'POST', body: fd });
+        const j = await res.json();
+        if (!j.ok) { toast('添加失败：' + (j.error || '')); return; }
+        toast(j.existed ? '这个站点已经在库里了' : '已添加');
+      }
+      closeStationDialog();
+      loadStations();
+    } catch (e) {
+      toast('保存失败：' + e.message);
+    }
+  }
+
+  function deleteStationConfirm(id) {
+    const st = stationsCache.find(s => s.id === id) || {};
+    showConfirm('删除站点', `确定删除「${st.name || st.url || id}」？只删这条记录，不影响浏览器书签。`, '删除', '取消', async () => {
+      const fd = new FormData();
+      fd.append('id', id);
+      const res = await fetch('/stations/delete', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (j.ok) { toast('已删除'); loadStations(); } else { toast('删除失败'); }
+    });
+  }
+
+  async function summarizeStation(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '速评中…'; }
+    try {
+      const fd = new FormData();
+      fd.append('id', id);
+      const res = await fetch('/stations/summarize', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!j.ok) toast('AI 速评失败：' + (j.error || ''));
+      else toast('AI 速评完成');
+    } catch (e) {
+      toast('AI 速评失败：' + e.message);
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'AI 速评'; }
+    loadStations();
+  }
+
+  async function refreshStation(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '抓取中…'; }
+    try {
+      const fd = new FormData();
+      fd.append('id', id);
+      const res = await fetch('/stations/refresh', { method: 'POST', body: fd });
+      const j = await res.json();
+      toast(j.ok ? '已重新抓取标题和 logo' : ('抓取失败：' + (j.error || '')));
+    } catch (e) {
+      toast('抓取失败：' + e.message);
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '重新抓取'; }
+    loadStations();
+  }
+
+  function ensureStationImportModal() {
+    if (document.getElementById('station-import-modal')) return;
+    const div = document.createElement('div');
+    div.id = 'station-import-modal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;align-items:center;justify-content:center;';
+    div.innerHTML = `
+      <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;width:92%;max-width:720px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <h3 id="station-import-title" style="font-size:15px;font-weight:600;margin:0;">导入站点</h3>
+          <span class="modal-x" onclick="closeStationImport()" style="cursor:pointer;">✕</span>
+        </div>
+        <div id="station-import-body" style="padding:16px 20px;overflow-y:auto;">
+          <div class="station-import-list" id="station-import-sources">
+            <div class="station-import-item">
+              <div><div>从 Safari 阅读列表导入</div><div class="desc">读 ~/Library/Safari/Bookmarks.plist（需要完全磁盘访问权限）</div></div>
+              <button class="btn-icon" onclick="stationImportPreview('safari_reading', this)">选择</button>
+            </div>
+            <div class="station-import-item">
+              <div><div>从 Safari 个人收藏导入</div><div class="desc">收藏夹 / 书签栏里的链接</div></div>
+              <button class="btn-icon" onclick="stationImportPreview('safari_favorites', this)">选择</button>
+            </div>
+            <div class="station-import-item">
+              <div><div>从 Chrome / Edge / Arc 书签导入</div><div class="desc">自动找本机书签文件（Default 配置）</div></div>
+              <button class="btn-icon" onclick="stationImportPreview('chrome', this)">选择</button>
+            </div>
+            <div class="station-import-item">
+              <div><div>从羊毛站目录导入</div><div class="desc">tkkgv8.gicp.fun 收录的全部 API 站点</div></div>
+              <button class="btn-icon" onclick="stationImportPreview('gicp', this)">选择</button>
+            </div>
+            <div class="station-import-item">
+              <div><div>上传书签 HTML</div><div class="desc">Safari / Chrome「导出书签」得到的 .html 文件</div></div>
+              <label class="btn-icon" style="cursor:pointer;">选择文件
+                <input type="file" accept=".html,.htm" style="display:none;" onchange="uploadStationFile(this)">
+              </label>
+            </div>
+          </div>
+          <div id="station-import-picker" style="display:none;"></div>
+          <div style="margin-top:14px;font-size:12px;color:var(--text-muted);" id="station-import-result"></div>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+  }
+
+  function showStationImport() {
+    ensureStationImportModal();
+    document.getElementById('station-import-result').textContent = '';
+    document.getElementById('station-import-sources').style.display = '';
+    document.getElementById('station-import-picker').style.display = 'none';
+    document.getElementById('station-import-title').textContent = '导入站点';
+    document.getElementById('station-import-modal').style.display = 'flex';
+  }
+
+  function closeStationImport() {
+    const m = document.getElementById('station-import-modal');
+    if (m) m.style.display = 'none';
+  }
+
+  // ---- 导入第一步：拉候选清单（不写库），交给用户勾选 ----
+  let stationCandidates = [];
+  let stationCandidateSource = '';
+  let stationPicked = new Set();
+
+  async function stationImportPreview(kind, btn) {
+    ensureStationImportModal();
+    document.getElementById('station-import-sources').style.display = 'none';
+    const picker = document.getElementById('station-import-picker');
+    picker.style.display = '';
+    document.getElementById('station-import-title').textContent = '选择要导入的站点';
+    picker.innerHTML = '<div style="padding:30px 0;text-align:center;color:var(--text-muted);font-size:13px;">正在读取候选站点…</div>';
+    if (btn) { btn.disabled = true; btn.textContent = '读取中…'; }
+    try {
+      const fd = new FormData();
+      fd.append('kind', kind);
+      const res = await fetch('/stations/import_preview', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!j.ok) {
+        picker.innerHTML = `<div style="padding:20px 0;color:var(--accent-red);font-size:13px;">${esc(j.error || '读取失败')}</div>`;
+        return;
+      }
+      stationCandidates = (j.items || []).filter(x => !x.exists);
+      stationCandidateSource = kind;
+      // 候选不多时默认全选，候选很多时默认不选（避免一口气把几百条书签灌进库里）
+      stationPicked = new Set(stationCandidates.length <= 30 ? stationCandidates.map(x => x.url) : []);
+      renderStationCandidates(j);
+    } catch (e) {
+      picker.innerHTML = `<div style="padding:20px 0;color:var(--accent-red);font-size:13px;">读取失败：${esc(e.message)}</div>`;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '选择'; }
+    }
+  }
+
+  async function uploadStationFile(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    ensureStationImportModal();
+    document.getElementById('station-import-sources').style.display = 'none';
+    const picker = document.getElementById('station-import-picker');
+    picker.style.display = '';
+    document.getElementById('station-import-title').textContent = '选择要导入的站点';
+    picker.innerHTML = '<div style="padding:30px 0;text-align:center;color:var(--text-muted);font-size:13px;">正在解析书签文件…</div>';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/stations/import_file_preview', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!j.ok) {
+        picker.innerHTML = `<div style="padding:20px 0;color:var(--accent-red);font-size:13px;">${esc(j.error || '解析失败')}</div>`;
+        return;
+      }
+      stationCandidates = (j.items || []).filter(x => !x.exists);
+      stationCandidateSource = 'bookmarks_html';
+      stationPicked = new Set(stationCandidates.length <= 30 ? stationCandidates.map(x => x.url) : []);
+      renderStationCandidates(j);
+    } catch (e) {
+      picker.innerHTML = `<div style="padding:20px 0;color:var(--accent-red);font-size:13px;">解析失败：${esc(e.message)}</div>`;
+    }
+  }
+
+  function stationPickFilter() {
+    const q = (document.getElementById('station-pick-search')?.value || '').trim().toLowerCase();
+    return stationCandidates.filter(x => !q ||
+      String(x.title || '').toLowerCase().includes(q) ||
+      String(x.url || '').toLowerCase().includes(q));
+  }
+
+  function renderStationCandidates(meta) {
+    const picker = document.getElementById('station-import-picker');
+    if (!picker) return;
+    const total = stationCandidates.length;
+    const existing = (meta && meta.existing) || 0;
+    if (!total) {
+      picker.innerHTML = `<div style="padding:20px 0;font-size:13px;color:var(--text-muted);">
+        没有新的站点可导入${existing ? `（${existing} 个已在库里）` : ''}。
+        <button class="btn-icon" style="margin-left:8px;" onclick="backToStationSources()">返回</button></div>`;
+      return;
+    }
+    picker.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input id="station-pick-search" class="search-input" placeholder="在候选中搜索…" oninput="renderStationCandidateList()" style="flex:1;">
+        <button class="btn-icon" onclick="stationPickAll(true)">全选</button>
+        <button class="btn-icon" onclick="stationPickAll(false)">清空</button>
+      </div>
+      <div class="stations-pick-meta" id="station-pick-meta"></div>
+      <div id="station-pick-list" class="stations-pick-list"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button class="btn-icon" onclick="backToStationSources()">返回</button>
+        <button class="btn-primary" id="btn-import-picked" onclick="stationImportConfirm()">导入选中</button>
+      </div>`;
+    renderStationCandidateList();
+  }
+
+  function renderStationCandidateList() {
+    const list = document.getElementById('station-pick-list');
+    if (!list) return;
+    const items = stationPickFilter();
+    list.innerHTML = items.map(x => {
+      const on = stationPicked.has(x.url);
+      const host = stationHost(x.url);
+      return `
+        <label class="stations-pick-row">
+          <input type="checkbox" ${on ? 'checked' : ''} onchange="stationTogglePick(this, '${esc(x.url)}')">
+          <span class="sp-title">${esc(x.title || host)}</span>
+          <span class="sp-host">${esc(host)}</span>
+        </label>`;
+    }).join('') || '<div style="padding:14px 0;color:var(--text-muted);font-size:13px;">没有匹配的候选</div>';
+    updateStationPickMeta();
+  }
+
+  function updateStationPickMeta() {
+    const meta = document.getElementById('station-pick-meta');
+    if (meta) meta.textContent = `已选 ${stationPicked.size} / 候选 ${stationCandidates.length}（已存在的会自动跳过）`;
+    const btn = document.getElementById('btn-import-picked');
+    if (btn) {
+      btn.disabled = stationPicked.size === 0;
+      btn.textContent = stationPicked.size ? `导入选中 (${stationPicked.size})` : '导入选中';
+    }
+  }
+
+  function stationTogglePick(cb, url) {
+    if (cb.checked) stationPicked.add(url); else stationPicked.delete(url);
+    updateStationPickMeta();
+  }
+
+  function stationPickAll(on) {
+    const items = stationPickFilter();
+    items.forEach(x => { if (on) stationPicked.add(x.url); else stationPicked.delete(x.url); });
+    renderStationCandidateList();
+  }
+
+  function backToStationSources() {
+    document.getElementById('station-import-sources').style.display = '';
+    document.getElementById('station-import-picker').style.display = 'none';
+    document.getElementById('station-import-title').textContent = '导入站点';
+    document.getElementById('station-import-result').textContent = '';
+  }
+
+  async function stationImportConfirm() {
+    const out = document.getElementById('station-import-result');
+    const picked = stationCandidates.filter(x => stationPicked.has(x.url));
+    if (!picked.length) { out.textContent = '请先勾选要导入的站点。'; return; }
+    const btn = document.getElementById('btn-import-picked');
+    if (btn) { btn.disabled = true; btn.textContent = '导入中…'; }
+    try {
+      const res = await fetch('/stations/import_selected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: stationCandidateSource, items: picked })
+      });
+      const j = await res.json();
+      if (!j.ok) out.textContent = '导入失败：' + (j.error || '未知错误');
+      else out.textContent = `完成：新增 ${j.added || 0} 个，跳过已存在 ${j.skipped || 0} 个，失败 ${j.failed || 0} 个。`;
+      loadStations();
+      if (j.ok && (j.added || 0) > 0) {
+        backToStationSources();
+        setTimeout(() => enrichStations(), 600);
+      }
+    } catch (e) {
+      out.textContent = '导入失败：' + e.message;
+    } finally {
+      if (btn) { btn.disabled = false; }
+      updateStationPickMeta();
+    }
+  }
+
+  async function summarizeStations() {
+    try {
+      const fd = new FormData();
+      fd.append('limit', '15');
+      const res = await fetch('/stations/summarize_missing', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!j.ok) { toast(j.error || '批量速评已在运行'); return; }
+      toast('正在后台生成 AI 速评（每站点约 5~10 秒）…');
+      const tick = async () => {
+        const r = await fetch('/stations/summarize_status');
+        const st = (await r.json()).state || {};
+        if (st.running) { setTimeout(tick, 3000); return; }
+        loadStations();
+        toast(`速评完成：成功 ${(st.total || 0) - (st.failed || 0)}，失败 ${st.failed || 0}`);
+      };
+      setTimeout(tick, 3000);
+    } catch (e) {
+      toast('批量速评失败：' + e.message);
+    }
+  }
+
+  async function enrichStations() {
+    try {
+      const fd = new FormData();
+      fd.append('limit', '40');
+      const res = await fetch('/stations/enrich', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!j.ok) { toast(j.error || '补全任务已在运行'); return; }
+      toast('正在后台补全标题和 Logo…');
+      const tick = async () => {
+        const r = await fetch('/stations/enrich_status');
+        const st = (await r.json()).state || {};
+        if (st.running) { setTimeout(tick, 2500); return; }
+        loadStations();
+        toast(`Logo 补全完成：成功 ${(st.total || 0) - (st.failed || 0)}，失败 ${st.failed || 0}`);
+      };
+      setTimeout(tick, 2500);
+    } catch (e) {
+      toast('补全失败：' + e.message);
+    }
+  }
+
+  async function uploadStationFile(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const out = document.getElementById('station-import-result');
+    out.textContent = '正在解析书签文件…';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/stations/import_file', { method: 'POST', body: fd });
+      const j = await res.json();
+      out.textContent = j.ok ? `完成：新增 ${j.added || 0} 个，跳过 ${j.skipped || 0} 个。` : ('失败：' + (j.error || ''));
+      loadStations();
+    } catch (e) {
+      out.textContent = '解析失败：' + e.message;
+    }
+    input.value = '';
+  }
+
   function openIntelStation() {
     window.open('https://www.mjjgo.com', '_blank', 'noopener,noreferrer');
   }
@@ -5522,7 +6511,7 @@
   DogeUI.loading = function(el, text, moodType = 'loading') {
     const quote = getDogeQuote(moodType);
     const enhanced = text + '\n\n💬 ' + quote;
-    return origLoading(el, enhanced);
+    return origLoading.call(DogeUI, el, enhanced);
   };
 
   // 增强所有 DogeUI.pop，加上随机名言（如果没有特定配对，就用 loading 的）
@@ -5531,12 +6520,179 @@
     if (!opts.skip_quote) {
       const quote = getDogeQuote(mood);
       const enhanced = text + '\n' + quote;
-      return origPop(mood, enhanced, opts);
+      return origPop.call(DogeUI, mood, enhanced, typeof opts === 'number' ? opts : opts.duration);
     }
-    return origPop(mood, text, opts);
+    return origPop.call(DogeUI, mood, text, typeof opts === 'number' ? opts : opts.duration);
   };
 
-  /* 好看的 UI 动画增强 */
+  // Safari changes are offered for review, never opened or imported by polling.
+  let safariPollBusy = false;
+  let safariPollWarned = false;
+  const safariPending = new Map();
+  const safariSeen = new Set();
+
+  function renderSafariBanner() {
+    let banner = document.getElementById('safari-updates-banner');
+    if (!banner) {
+      banner = document.createElement('aside');
+      banner.id = 'safari-updates-banner';
+      banner.setAttribute('role', 'status');
+      banner.innerHTML = '<span></span><button type="button" class="btn-ghost">查看 / 选择</button><button type="button" class="btn-ghost" aria-label="忽略本次 Safari 更新">×</button>';
+      document.body.appendChild(banner);
+      banner.querySelectorAll('button')[0].onclick = () => {
+        const items = [...safariPending.values()];
+        showStationImport();
+        document.getElementById('station-import-sources').style.display = 'none';
+        document.getElementById('station-import-picker').style.display = '';
+        document.getElementById('station-import-title').textContent = '选择 Safari 新增站点';
+        stationCandidates = items.filter(item => !item.exists);
+        stationCandidateSource = 'safari_reading';
+        stationPicked = new Set(stationCandidates.length <= 30 ? stationCandidates.map(item => item.url) : []);
+        renderStationCandidates({ items, existing: items.length - stationCandidates.length });
+        safariPending.clear();
+        renderSafariBanner();
+      };
+      banner.querySelectorAll('button')[1].onclick = () => { safariPending.clear(); renderSafariBanner(); };
+    }
+    banner.hidden = !safariPending.size;
+    banner.querySelector('span').textContent = `Safari 有 ${safariPending.size} 个新增站点待查看`;
+  }
+
+  async function pollSafariUpdates() {
+    if (document.hidden || safariPollBusy) return;
+    safariPollBusy = true;
+    try {
+      const response = await fetch('/stations/safari_updates');
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.status || result.error || `HTTP ${response.status}`);
+      const items = Array.isArray(result.items) ? result.items : [];
+      for (const item of items) {
+        if (!item.url || safariSeen.has(item.url)) continue;
+        safariSeen.add(item.url);
+        safariPending.set(item.url, item);
+      }
+      if (safariPending.size) renderSafariBanner();
+    } catch (error) {
+      if (!safariPollWarned) { console.info('Safari 更新检查暂不可用：', error.message); safariPollWarned = true; }
+    } finally { safariPollBusy = false; }
+  }
+  setInterval(pollSafariUpdates, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollSafariUpdates(); });
+  pollSafariUpdates();
+
+  // Shared contextual actions use the existing menu and existing action buttons.
+  // No inline JS is constructed from entity names, URLs, or keys.
+  const contextEntitySelector = '.nav-item[data-view], .station-card, .station-row, .key-card, .key-row, .file-card, .chat-row, .provider-row, .files-recent .fr-row, .directory-actions';
+  let contextReturnFocus = null;
+
+  function positionEntityMenu(ev, entity) {
+    const menu = document.getElementById('ctx-menu');
+    contextReturnFocus = entity.querySelector('.entity-overflow') || entity;
+    menu.setAttribute('role', 'menu');
+    menu.querySelectorAll('.ctx-item').forEach(item => {
+      item.setAttribute('role', 'menuitem');
+      item.tabIndex = item.classList.contains('disabled') ? -1 : 0;
+      if (item.tagName !== 'BUTTON') item.onkeydown = event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); item.click(); }
+      };
+    });
+    menu.classList.add('open');
+    const rect = entity.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(ev.clientX ?? rect.left, innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = Math.max(8, Math.min(ev.clientY ?? rect.bottom, innerHeight - menu.offsetHeight - 8)) + 'px';
+    menu.querySelector('[role="menuitem"]:not(.disabled)')?.focus();
+  }
+
+  function openEntityMenu(ev, entity) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const provider = entity.querySelector('.provider-name[data-pid]');
+    if (provider) {
+      providerContextMenu({ preventDefault() {}, clientX: ev.clientX || 0, clientY: ev.clientY || 0 }, provider.dataset.pid);
+      positionEntityMenu(ev, entity);
+      return;
+    }
+    const actions = [];
+    const add = (label, run, disabled = false) => actions.push({ label, run, disabled });
+    if (entity.matches('.nav-item')) add('打开 ' + entity.querySelector('.nav-label').textContent.trim(), () => switchView(entity.dataset.view));
+    if (entity.matches('.chat-row')) add('打开会话', () => entity.click());
+    if (entity.matches('.directory-actions')) add('复制目录路径', () => copyText(entity.querySelector('input')?.value || ''));
+    entity.querySelectorAll('button:not(.entity-overflow), a[href]').forEach(control => {
+      if (control.closest(contextEntitySelector) !== entity) return;
+      const label = control.textContent.trim() || control.title || control.getAttribute('aria-label');
+      if (label) add(label, () => control.click(), control.disabled);
+    });
+    const station = stationsCache.find(item => String(item.id) === entity.dataset.stationId);
+    if (station) {
+      add('复制站点地址', () => copyText(station.url));
+      if (!entity.querySelector('[data-act="refresh"]')) add('重新抓取', () => refreshStation(station.id));
+    }
+    const key = cachedKeys.find(item => String(item.id) === entity.dataset.keyId);
+    if (key && entity.matches('.key-row')) {
+      add('复制 Base URL', () => copyText(key.base_url));
+      add('复制 cURL', () => copyCurl(key.base_url, key.api_key || key.masked || ''));
+      add('来源聊天', () => locateKeySource(key.id));
+    }
+    if (entity.matches('.chat-row, .file-card')) add('复制名称', () => copyText(entity.querySelector('.chat-name, .name')?.textContent || ''));
+    const menu = document.getElementById('ctx-menu');
+    menu.replaceChildren();
+    for (const action of actions) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ctx-item' + (action.disabled ? ' disabled' : '');
+      button.textContent = action.label;
+      button.disabled = !!action.disabled;
+      button.onclick = () => { closeContextMenu(); action.run(); };
+      menu.appendChild(button);
+    }
+    if (actions.length) positionEntityMenu(ev, entity);
+  }
+
+  function decorateContextEntities(root = document) {
+    const entities = [...(root.matches?.(contextEntitySelector) ? [root] : []), ...root.querySelectorAll(contextEntitySelector)];
+    entities.forEach(entity => {
+      if (entity.querySelector(':scope > .entity-overflow')) return;
+      if (!entity.hasAttribute('tabindex')) entity.tabIndex = 0;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'entity-overflow';
+      button.textContent = '⋯';
+      button.title = '更多操作（Shift+F10）';
+      button.setAttribute('aria-label', '更多操作');
+      button.setAttribute('aria-haspopup', 'menu');
+      entity.appendChild(button);
+    });
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('.entity-overflow');
+    if (button) openEntityMenu(event, button.closest(contextEntitySelector));
+  }, true);
+  document.addEventListener('contextmenu', event => {
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]') || String(getSelection()).trim()) { event.stopPropagation(); return; }
+    const entity = event.target.closest(contextEntitySelector);
+    if (entity) openEntityMenu(event, entity);
+  }, true);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && contextReturnFocus) { contextReturnFocus.focus(); contextReturnFocus = null; }
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+      const entity = event.target.closest(contextEntitySelector);
+      if (entity) openEntityMenu(event, entity);
+    }
+    const menu = document.getElementById('ctx-menu');
+    if (menu.contains(event.target) && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const items = [...menu.querySelectorAll('[role="menuitem"]:not(.disabled)')];
+      const index = items.indexOf(document.activeElement);
+      items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+    }
+  });
+  new MutationObserver(records => {
+    records.forEach(record => record.addedNodes.forEach(node => {
+      if (node.nodeType === 1 && !node.matches('.entity-overflow')) decorateContextEntities(node);
+    }));
+  }).observe(document.body, { childList: true, subtree: true });
+  decorateContextEntities();
 
 </script>
 </body>

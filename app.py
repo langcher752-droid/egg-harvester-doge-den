@@ -30,6 +30,7 @@ import qq_ingest
 import media
 import napcat
 import intel
+import stations
 import api_extensions
 import wxgf_decoder
 
@@ -352,6 +353,15 @@ async def harvest(text: str = Form(""), image: UploadFile = File(None)):
                                 "curl": res.get("curl"), "trace": res.get("trace")})
     if text and text.strip():
         results = await asyncio.to_thread(process_text, text, "web")
+        # 视频 / 公众号文章 / 网盘分享 等链接不可能提供 API，统计后提示用户，
+        # 避免「明明粘贴了带 key 的消息却显示没扒到」的困惑。
+        from extract import BASEURL_RE
+        from probe import is_content_url, is_plausible_api_url
+        ignored = sum(
+            1 for u in BASEURL_RE.findall(text)
+            if is_content_url(u) or not is_plausible_api_url(u)
+        )
+        return {"count": len(results), "results": results, "ignored": ignored}
     return {"count": len(results), "results": results}
 
 
@@ -926,6 +936,45 @@ async def delete_key(key_id: int = Form(...)):
     return {"ok": n > 0, "deleted": n}
 
 
+@app.post("/keys/delete_batch")
+async def delete_keys_batch(key_ids: str = Form(...)):
+    """批量删除鸡蛋：key_ids 为逗号分隔的 id；only_invalid=1 时只删失效的。"""
+    from db import _conn
+
+    wanted = [int(x) for x in str(key_ids or "").replace("，", ",").split(",") if x.strip().isdigit()]
+    if not wanted:
+        return {"ok": False, "deleted": 0, "error": "没有传入有效的 key id"}
+
+    def _del():
+        c = _conn()
+        placeholders = ",".join("?" * len(wanted))
+        cur = c.execute(f"DELETE FROM keys WHERE id IN ({placeholders})", wanted)
+        c.commit()
+        n = cur.rowcount
+        c.close()
+        return n
+
+    n = await asyncio.to_thread(_del)
+    return {"ok": n > 0, "deleted": n, "requested": len(wanted)}
+
+
+@app.post("/keys/delete_invalid")
+async def delete_invalid_keys():
+    """一键清空所有已失效（status != 'valid'）的鸡蛋。"""
+    from db import _conn
+
+    def _del():
+        c = _conn()
+        cur = c.execute("DELETE FROM keys WHERE status IS NULL OR status != 'valid'")
+        c.commit()
+        n = cur.rowcount
+        c.close()
+        return n
+
+    n = await asyncio.to_thread(_del)
+    return {"ok": True, "deleted": n}
+
+
 # ---------- 情报简报系统 ----------
 
 @app.post("/intel/generate")
@@ -1433,6 +1482,161 @@ async def update_setting(key: str = Form(...), value: str = Form("")):
     """更新配置项（value 可为空 = 恢复默认）"""
     await asyncio.to_thread(api_extensions.set_setting, key, value)
     return {"ok": True, "key": key}
+
+
+# ---------- 鸡蛋站（站点库：手工收录 + 自动标题/logo + 分类 + AI 速评 + 导入） ----------
+
+@app.get("/stations")
+async def stations_list(type: str = "", q: str = "", source: str = ""):
+    items = await asyncio.to_thread(stations.list_stations, type, q, source)
+    return {"stations": items, "types": stations.TYPE_LABELS}
+
+
+@app.post("/stations/preview")
+async def stations_preview(url: str = Form(...)):
+    meta = await asyncio.to_thread(stations.fetch_meta, url)
+    return {"ok": bool(meta.get("ok")), "meta": meta}
+
+
+@app.post("/stations/add")
+async def stations_add(
+    url: str = Form(...),
+    name: str = Form(""),
+    type: str = Form(""),
+    reliability: int = Form(3),
+    note: str = Form(""),
+    auto_meta: str = Form("1"),
+):
+    sid, err = await asyncio.to_thread(
+        stations.add_station, url, name, type, reliability, note, "manual", auto_meta not in ("0", "false", "")
+    )
+    if not sid:
+        return {"ok": False, "error": err or "添加失败"}
+    return {"ok": True, "id": sid, "existed": err == "已存在", "station": stations.get_station(sid)}
+
+
+@app.post("/stations/update")
+async def stations_update(
+    id: int = Form(...),
+    name: str = Form(None),
+    type: str = Form(None),
+    reliability: int = Form(None),
+    note: str = Form(None),
+):
+    fields = {}
+    if name is not None:
+        fields["name"] = name
+    if type is not None and type in stations.TYPE_LABELS:
+        fields["type"] = type
+    if reliability is not None:
+        fields["reliability"] = max(1, min(5, reliability))
+    if note is not None:
+        fields["note"] = note
+    if not fields:
+        return {"ok": False, "error": "没有要更新的字段"}
+    await asyncio.to_thread(stations.update_station, id, **fields)
+    return {"ok": True, "station": stations.get_station(id)}
+
+
+@app.post("/stations/delete")
+async def stations_delete(id: int = Form(...)):
+    st = stations.get_station(id)
+    await asyncio.to_thread(stations.delete_station, id)
+    return {"ok": True, "deleted": 1, "name": (st or {}).get("name")}
+
+
+@app.post("/stations/refresh")
+async def stations_refresh(id: int = Form(...)):
+    return await asyncio.to_thread(stations.refresh_meta, id)
+
+
+@app.post("/stations/summarize")
+async def stations_summarize(id: int = Form(...)):
+    return await asyncio.to_thread(stations.summarize_station, id)
+
+
+@app.post("/stations/import")
+async def stations_import(kind: str = Form(...)):
+    """kind: safari_reading | safari_favorites | chrome | gicp"""
+    if kind in ("safari_reading", "safari_favorites"):
+        mode = "reading" if kind.endswith("reading") else "favorites"
+        raw = await asyncio.to_thread(stations.import_safari, mode)
+        if not raw.get("ok"):
+            return raw
+        return await asyncio.to_thread(stations.import_items, raw["items"], kind, False)
+    if kind == "chrome":
+        raw = await asyncio.to_thread(stations.import_chrome)
+        if not raw.get("ok"):
+            return raw
+        return await asyncio.to_thread(stations.import_items, raw["items"], "chrome", False)
+    if kind == "gicp":
+        return await asyncio.to_thread(stations.seed_from_gicp)
+    return {"ok": False, "error": f"未知导入类型: {kind}"}
+
+
+@app.post("/stations/import_preview")
+async def stations_import_preview(kind: str = Form(...)):
+    """预览导入候选（不写库）：kind: safari_reading | safari_favorites | chrome | gicp"""
+    if kind in ("safari_reading", "safari_favorites"):
+        mode = "reading" if kind.endswith("reading") else "favorites"
+        return await asyncio.to_thread(stations.preview_safari, mode)
+    if kind == "chrome":
+        return await asyncio.to_thread(stations.preview_chrome)
+    if kind == "gicp":
+        return await asyncio.to_thread(stations.preview_gicp)
+    return {"ok": False, "error": f"未知导入类型: {kind}", "items": [], "total": 0}
+
+
+@app.get("/stations/safari_updates")
+async def stations_safari_updates():
+    """检测首次基线后的阅读列表新增项；只确认候选，不自动入库。"""
+    return await asyncio.to_thread(stations.safari_updates)
+
+
+@app.post("/stations/import_selected")
+async def stations_import_selected(payload: dict = Body(...)):
+    """按用户勾选入库：{source, items:[{url,title,note}]}"""
+    items = payload.get("items") or []
+    source = payload.get("source") or "import"
+    return await asyncio.to_thread(stations.import_selected, items, source)
+
+
+@app.post("/stations/import_file_preview")
+async def stations_import_file_preview(file: UploadFile = File(...)):
+    raw = await file.read()
+    text = raw.decode("utf-8", "replace")
+    if "<a" not in text.lower():
+        return {"ok": False, "error": "没解析到书签，请确认是浏览器导出的 HTML 书签文件", "items": [], "total": 0}
+    return await asyncio.to_thread(stations.preview_html_text, text)
+
+
+@app.post("/stations/enrich")
+async def stations_enrich(limit: int = Form(40)):
+    return stations.enrich_missing(limit)
+
+
+@app.post("/stations/summarize_missing")
+async def stations_summarize_missing(limit: int = Form(20)):
+    return stations.summarize_missing(limit)
+
+
+@app.get("/stations/summarize_status")
+async def stations_summarize_status():
+    return stations.summarize_status()
+
+
+@app.get("/stations/enrich_status")
+async def stations_enrich_status():
+    return stations.enrich_status()
+
+
+@app.post("/stations/import_file")
+async def stations_import_file(file: UploadFile = File(...)):
+    raw = await file.read()
+    text = raw.decode("utf-8", "replace")
+    if "<a" not in text.lower():
+        return {"ok": False, "error": "没解析到书签，请确认是浏览器导出的 HTML 书签文件"}
+    return await asyncio.to_thread(stations.import_html_text, text)
 
 
 @app.get("/daemon/status")

@@ -48,3 +48,6 @@ electron-app/node_modules/
 *交付清单*.md
 *交付说明*.md
 DEPLOYMENT.md
+
+# 站点库下载的 favicon（本地缓存，不入库）
+static/logos/

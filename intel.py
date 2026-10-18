@@ -244,6 +244,21 @@ def generate_summary(platform: str, chat_id: str, window_hours: int = 6) -> Dict
         (platform, chat_id, start_ts, now_ts)
     )]
     
+    if not messages and platform == 'web':
+        # Web 站点更新不频繁：窗口内没有新内容时，用该站最近一批消息兜底，
+        # 保证「鸡蛋站」来源始终有简报可看。
+        messages = [dict(r) for r in c.execute(
+            """SELECT id, sender_name, content, ts
+               FROM raw_messages
+               WHERE platform='web' AND chat_id=? AND recalled=0
+               ORDER BY ts DESC LIMIT 20""",
+            (chat_id,)
+        )]
+        messages.reverse()
+        if messages:
+            start_ts = min(m["ts"] for m in messages)
+            window_hours = max(1, int((now_ts - start_ts) / 3600))
+
     if not messages:
         c.close()
         return None
@@ -342,13 +357,13 @@ def generate_all_summaries(window_hours: int = 6) -> List[Dict]:
     now_ts = int(datetime.now().timestamp())
     start_ts = now_ts - (window_hours * 3600)
     
-    # 找出有新消息的群
+    # 找出有新消息的群：QQ/微信至少 5 条；Web 站点（福利/白嫖/mjjgo）更新少，1 条就总结
     groups = c.execute(
-        """SELECT DISTINCT platform, chat_id, chat_name 
-           FROM raw_messages 
-           WHERE ts >= ? 
+        """SELECT DISTINCT platform, chat_id, chat_name
+           FROM raw_messages
+           WHERE ts >= ?
            GROUP BY platform, chat_id
-           HAVING count(*) > 5""",  # 至少 5 条消息才生成简报
+           HAVING (platform = 'web' AND count(*) >= 1) OR (platform != 'web' AND count(*) > 5)""",
         (start_ts,)
     ).fetchall()
     
@@ -371,9 +386,19 @@ def list_summaries(limit: int = 20) -> List[Dict]:
     """列出最近的简报"""
     c = _conn()
     rows = c.execute(
-        """SELECT s.*, 
-                  (SELECT name FROM groups WHERE platform=s.platform AND chat_id=s.chat_id) as chat_name
+        """SELECT s.*,
+                  COALESCE(
+                    (SELECT name FROM groups WHERE platform=s.platform AND chat_id=s.chat_id),
+                    (SELECT chat_name FROM raw_messages WHERE platform=s.platform AND chat_id=s.chat_id
+                        AND chat_name IS NOT NULL AND chat_name != ''
+                        ORDER BY ts DESC LIMIT 1)
+                  ) as chat_name
            FROM intel_summaries s
+           WHERE s.id = (
+             SELECT s2.id FROM intel_summaries s2
+             WHERE s2.platform = s.platform AND s2.chat_id = s.chat_id
+             ORDER BY s2.window_end DESC, s2.id DESC LIMIT 1
+           )
            ORDER BY window_end DESC
            LIMIT ?""",
         (limit,)

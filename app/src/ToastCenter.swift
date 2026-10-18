@@ -23,10 +23,6 @@ final class ToastCenter {
         arrange(animated: false)
         toast.orderFrontRegardless()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self, weak toast] in
-            guard let self = self, let toast = toast else { return }
-            self.dismiss(toast)
-        }
     }
 
     private func dismiss(_ toast: ToastWindow) {
@@ -70,6 +66,8 @@ final class ToastCenter {
 final class ToastWindow: NSWindow {
     private let onClick: () -> Void
     private let onClose: (ToastWindow) -> Void
+    private var dismissTimer: Timer?
+    private var remaining: TimeInterval = 18
 
     init(emoji: String, title: String, body: String, width: CGFloat,
          onClick: @escaping () -> Void, onClose: @escaping (ToastWindow) -> Void) {
@@ -116,7 +114,7 @@ final class ToastWindow: NSWindow {
         closeBtn.contentTintColor = .secondaryLabelColor
         closeBtn.translatesAutoresizingMaskIntoConstraints = false
 
-        // 自动关闭进度条（12s 走完）
+        // 自动关闭进度条：18 秒，鼠标停留时暂停。
         let progress = NSView()
         progress.wantsLayer = true
         progress.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.65).cgColor
@@ -187,22 +185,21 @@ final class ToastWindow: NSWindow {
         bg.onClick = { [weak self] in
             guard let self = self else { return }
             self.onClick()
-            self.fadeOutAndClose()
+            self.onClose(self)
         }
         bg.closeButton = closeBtn
 
         closeBtn.target = self
         closeBtn.action = #selector(closeClicked)
 
-        // 进度条从满宽缩到 0（12s）
-        let widthConstraint = progress.widthAnchor.constraint(equalTo: bg.widthAnchor)
+        let widthConstraint = progress.widthAnchor.constraint(equalToConstant: width)
         widthConstraint.isActive = true
-        DispatchQueue.main.async {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 12.0
-                ctx.timingFunction = CAMediaTimingFunction(name: .linear)
-                widthConstraint.animator().constant = 0
-            }
+        dismissTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+            guard let self = self else { timer.invalidate(); return }
+            guard !self.frame.contains(NSEvent.mouseLocation) else { return }
+            self.remaining -= 0.1
+            widthConstraint.constant = width * CGFloat(max(0, self.remaining) / 18)
+            if self.remaining <= 0 { self.onClose(self) }
         }
     }
 
@@ -220,6 +217,8 @@ final class ToastWindow: NSWindow {
     }
 
     func fadeOutAndClose() {
+        dismissTimer?.invalidate()
+        dismissTimer = nil
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.18
             self.animator().alphaValue = 0

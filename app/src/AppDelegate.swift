@@ -52,12 +52,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         } else if let i = args.firstIndex(of: "--eval"), i + 1 < args.count {
-            // 自检：在页面里执行 JS 并打印结果
+            // 自检：在页面里执行 JS 并打印结果；支持 --goto <panel> 先切面板并等渲染
             let code = args[i + 1]
+            var panel = ""
+            if let g = args.firstIndex(of: "--goto"), g + 1 < args.count { panel = args[g + 1] }
+            var extraWait = 0.0
+            if let w = args.firstIndex(of: "--wait"), w + 1 < args.count { extraWait = (Double(args[w + 1]) ?? 0) / 1000.0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + 9) {
-                self.mainWindow.evaluateResult(code) { v in
-                    print("[eval] \(v ?? "nil")")
-                    exit(0)
+                if panel == "qq" {
+                    self.mainWindow.evaluate("if (typeof openQQModal === 'function') openQQModal()")
+                } else if !panel.isEmpty {
+                    self.mainWindow.evaluate("if (typeof switchView === 'function') switchView('\(panel)')")
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + (panel.isEmpty ? 0 : 2.5) + extraWait) {
+                    self.mainWindow.evaluateResult(code) { v in
+                        print("[eval] \(v ?? "nil")")
+                        exit(0)
+                    }
                 }
             }
         } else if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {

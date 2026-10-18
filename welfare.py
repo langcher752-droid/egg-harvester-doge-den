@@ -82,6 +82,7 @@ def ingest_topics():
             "web", "welfare", f"topic:{tid}",
             chat_name="AI福利日报",
             sender_id=str(r.get("source") or ""),
+            sender_name=str(r.get("source") or "AI福利日报"),
             ts=_parse_ts(r.get("created_at") or ""),
              msg_type="text",
             content=_render(r),

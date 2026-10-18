@@ -4,6 +4,7 @@
   welfare.ingest_topics()  聚合 6 源福利帖（300 条，每日多次更新）
   baipiao.ingest()         白嫖论坛鸡蛋帖（正文提取 key → 验证 → 入库）
   mjjgo.ingest()           买鸡鸡go 最新帖（正文提取 key → 验证 → 入库）
+  gicp.ingest()            羊毛站（tkkgv8.gicp.fun）收录的全部站点
 
 用法：
   web_watch.py --once   跑一轮
@@ -17,6 +18,7 @@ import store
 import welfare
 import baipiao
 import mjjgo
+import gicp
 
 INTERVAL = int(os.getenv("WEB_POLL_INTERVAL", str(6 * 3600)))
 
@@ -35,7 +37,11 @@ def once():
         m = mjjgo.ingest()
     except Exception as e:
         m = {"error": str(e)}
-    print(f"[web] welfare={w} baipiao={b} mjjgo={m}", flush=True)
+    try:
+        g = gicp.ingest()
+    except Exception as e:
+        g = {"error": str(e)}
+    print(f"[web] welfare={w} baipiao={b} mjjgo={m} gicp={g}", flush=True)
 
 
 if __name__ == "__main__":

@@ -105,6 +105,7 @@ def ingest():
         if attrs.get("bpLevelLocked"):
             # 锁定帖读不到正文，仍记标题
             store.save_raw("web", "baipiao", f"bp:{did}", chat_name="白嫖社区",
+                           sender_name="白嫖社区",
                            ts=_parse_ts(attrs.get("createdAt") or ""),
                            msg_type="text", content=f"[白嫖帖·锁定] {title}\n原帖:{API}/{did}")
             continue
@@ -116,6 +117,7 @@ def ingest():
             continue
         n_post += 1
         store.save_raw("web", "baipiao", f"bp:{did}", chat_name="白嫖社区",
+                           sender_name="白嫖社区",
                        ts=_parse_ts(attrs.get("createdAt") or ""),
                        msg_type="text", content=f"[白嫖帖] {title}\n原帖:{API}/{did}\n正文:\n{text}", raw_json=text[:4000])
         for c in _extract_pairs(text):

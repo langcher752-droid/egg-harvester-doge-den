@@ -4,6 +4,7 @@ import base64
 import httpx
 
 from config import GATEWAY_BASE, GATEWAY_KEY, VISION_MODEL, HTTP_TIMEOUT, httpx_kwargs
+from probe import is_content_url, is_plausible_api_url
 
 # 常见密钥前缀
 KEY_PATTERNS = [
@@ -46,13 +47,16 @@ def extract_from_text(text: str):
             paired = line_urls[0] if line_urls else None
             candidates.append({"base_url": paired, "api_key": k})
 
-    # 去重
+    # 去重 + 丢掉明显不是接口的地址（视频/公众号文章/网盘分享）
     seen = set()
     out = []
     for c in candidates:
         if not c.get("api_key"):
             continue
-        sig = (c.get("base_url"), c["api_key"])
+        base = c.get("base_url")
+        if base and (is_content_url(base) or not is_plausible_api_url(base)):
+            continue
+        sig = (base, c["api_key"])
         if sig in seen:
             continue
         seen.add(sig)
@@ -94,7 +98,12 @@ def extract_from_image(image_bytes: bytes, mime: str = "image/png"):
         )
         r.raise_for_status()
         content = r.json()["choices"][0]["message"]["content"]
-        return _parse_json_array(content)
+        candidates = _parse_json_array(content)
+        return [
+            c for c in candidates
+            if isinstance(c, dict) and c.get("api_key")
+            and (not c.get("base_url") or is_plausible_api_url(c.get("base_url")))
+        ]
     except Exception:
         return []
 

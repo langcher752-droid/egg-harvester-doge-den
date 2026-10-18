@@ -272,6 +272,9 @@
   body.embedded .tb-title { display: none; }
   body.embedded .tb-sep { display: none; }
   body.embedded .wrap { padding: 14px 16px 22px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -345,6 +348,9 @@ const ANIMS = [
 const IMG_BASE = '/static/doge/img/';
 const ST_BASE = '/static/doge/stickers/';
 let selected = null;
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+}
 
 function applyTheme(theme) {
   const allowed = ['github', 'dark', 'light', 'nord'];
@@ -421,9 +427,9 @@ function renderMoods() {
   document.getElementById('mood-count').textContent = keys.length;
   host.innerHTML = keys.map(k => {
     const f = faces[k][0];
-    return `<div class="mood" data-mood="${k}" data-file="${f}">
-      <img src="/static/doge/stickers/${f}.webp" alt="">
-      <div><div class="m1">${MOOD_LABEL[k] || k}</div><div class="m2">${k}</div></div>
+    return `<div class="mood" data-mood="${esc(k)}" data-file="${esc(f)}">
+      <img src="/static/doge/stickers/${esc(f)}.webp" alt="">
+      <div><div class="m1">${esc(MOOD_LABEL[k] || k)}</div><div class="m2">${esc(k)}</div></div>
     </div>`;
   }).join('');
   host.querySelectorAll('.mood').forEach(el => {
@@ -452,8 +458,8 @@ function renderHeroes() {
     const key = name.replace('.webp', '');
     const m = meta[key] || [key, 'Doge 素材'];
     return `<div class="hero">
-      <div class="thumb"><img src="${IMG_BASE}${name}" alt="${m[0]}" loading="lazy"></div>
-      <div class="meta"><b>${m[0]}</b><span>${m[1]}</span></div>
+      <div class="thumb"><img src="${IMG_BASE}${esc(name)}" alt="${esc(m[0])}" loading="lazy"></div>
+      <div class="meta"><b>${esc(m[0])}</b><span>${esc(m[1])}</span></div>
     </div>`;
   }).join('');
 }
@@ -462,12 +468,12 @@ function renderWall() {
   const wall = document.getElementById('wall');
   document.getElementById('sticker-count').textContent = STICKERS.length + ICONMEME.length;
   wall.innerHTML = STICKERS.map((f, i) =>
-    `<div class="sticker" data-i="${i}" title="${f}">
-       <img src="${ST_BASE}${f}" alt="sticker ${i + 1}" loading="lazy">
+    `<div class="sticker" data-i="${i}" title="${esc(f)}">
+       <img src="${ST_BASE}${esc(f)}" alt="sticker ${i + 1}" loading="lazy">
      </div>`
   ).join('') + ICONMEME.map((item, i) =>
-    `<div class="sticker" data-custom="${i}" title="${item.name}">
-       <img src="${item.url}" alt="${item.name}" loading="lazy">
+    `<div class="sticker" data-custom="${i}" title="${esc(item.name)}">
+       <img src="${esc(item.url)}" alt="${esc(item.name)}" loading="lazy">
      </div>`
   ).join('');
   wall.querySelectorAll('.sticker').forEach(el => {
@@ -496,15 +502,15 @@ function pickPath(path, selectedEl) {
     return;
   }
   selected = path;
-  toast('已选中第 ' + (i + 1) + ' 张贴纸 · 点卡片应用');
+  toast('已选中贴纸 · 点卡片应用');
 }
 
 function renderGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = ANIMS.map(([cls, label], i) => {
     const inner = cls === 'wave'
-      ? Array.from({ length: 4 }, () => `<img class="doge" src="${IMG_BASE}${HERO}" alt="wave">`).join('')
-      : `<img class="doge" src="${IMG_BASE}${HERO}" alt="${cls}">`;
+      ? Array.from({ length: 4 }, () => `<img class="doge" src="${IMG_BASE}${esc(HERO)}" alt="wave">`).join('')
+      : `<img class="doge" src="${IMG_BASE}${esc(HERO)}" alt="${cls}">`;
     return `<div class="card a-${cls}" data-cls="${cls}">
       <div class="stage">${inner}</div>
       <div class="cap">${label}</div>
@@ -533,7 +539,7 @@ document.getElementById('grid').addEventListener('click', (e) => {
   if (!card) return;
   if (!selected) { toast('先在上方贴纸墙选一张贴纸'); return; }
   card.querySelectorAll('.doge').forEach(img => { img.src = selected; });
-  card.animate(
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) card.animate(
     [{ transform: 'scale(1)' }, { transform: 'scale(1.05)' }, { transform: 'scale(1)' }],
     { duration: 240, easing: 'ease-out' }
   );

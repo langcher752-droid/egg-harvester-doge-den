@@ -29,6 +29,35 @@ DSH_CREDS = os.path.join(DSH_DIR, ".credentials.yaml")
 
 TIMEOUT = 8.0
 
+# 很多中转站挂在 Cloudflare 后面，默认 python-httpx 的 UA 会直接吃 403 HTML 假页面，
+# 这里伪装成普通浏览器，避免「明明能用的 key 被判定失效」。
+_UA_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                   "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
+    "Accept": "application/json, text/plain, */*",
+}
+
+
+def _models_url(base: str) -> str:
+    """把 baseURL 拼成 /models 地址。
+
+    兼容三种写法：
+      https://x.com/v1   → https://x.com/v1/models
+      https://x.com/v1/  → https://x.com/v1/models   （旧实现会拼成 /v1//v1/models）
+      https://x.com      → https://x.com/v1/models
+      https://x.com/api/paas/v4 → https://x.com/api/paas/v4/models
+    """
+    b = (base or "").strip().rstrip("/")
+    if not b:
+        return ""
+    low = b.lower()
+    if low.endswith("/models"):
+        return b
+    # 路径里已经带版本号（/v1 /v2 /v4 /v1beta ...）就只补 /models
+    if re.search(r"/v\d+[a-z0-9]*$", low):
+        return b + "/models"
+    return b + "/v1/models"
+
 DSH_PROFILES = os.path.join(DSH_DIR, "profiles")
 
 
@@ -341,13 +370,12 @@ def test_one(p: Dict) -> Dict:
         hint = f"（{env} 在 ~/.dsh/.credentials.yaml 里没有值）" if env else ""
         return {**p, "ok": False, "status": 0, "latency_ms": 0,
                 "error": f"未配置 API Key{hint}", "curl": "", "trace": []}
+    url = _models_url(base)
     if style == "anthropic":
-        url = base + ("/models" if base.endswith("/v1") else "/v1/models")
-        headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+        headers = {**_UA_HEADERS, "x-api-key": key, "anthropic-version": "2023-06-01"}
         curl = f"curl -sS -m {int(TIMEOUT)} '{url}' -H 'x-api-key: {_mask(key)}' -H 'anthropic-version: 2023-06-01'"
     else:
-        url = base + ("/models" if base.endswith("/v1") else "/v1/models")
-        headers = {"Authorization": f"Bearer {key}"}
+        headers = {**_UA_HEADERS, "Authorization": f"Bearer {key}"}
         curl = f"curl -sS -m {int(TIMEOUT)} '{url}' -H 'Authorization: Bearer {_mask(key)}'"
 
     t0 = time.time()

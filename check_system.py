@@ -62,6 +62,8 @@ def main():
             ("情报分析模块", lambda: check_file("intel.py")),
             ("API扩展模块", lambda: check_file("api_extensions.py")),
             ("买鸡鸡go采集", lambda: check_file("mjjgo.py")),
+            ("羊毛站采集", lambda: check_file("gicp.py")),
+            ("鸡蛋站站点库", lambda: check_file("stations.py")),
             ("通知App源码", lambda: check_file(ROOT / "app/src/Notifications.swift")),
         ],
         "数据库表": [
@@ -74,6 +76,7 @@ def main():
             ("important_events", lambda: check_db_table("important_events")),
             ("settings", lambda: check_db_table("settings")),
             ("file_summaries", lambda: check_db_table("file_summaries")),
+            ("stations", lambda: check_db_table("stations")),
         ],
         "前端功能": [
             ("Markdown渲染库", lambda: "marked" in _page()),
@@ -84,6 +87,11 @@ def main():
             ("重要事件检测按钮", lambda: "detectEvents" in _page()),
             ("智能标题展示", lambda: "f.title" in _page()),
             ("下载目录配置", lambda: "setting-download-dir" in _page()),
+            ("鸡蛋站站点卡片", lambda: "station-card" in _page()),
+            ("站点导入入口", lambda: "showStationImport" in _page()),
+            ("导入候选可勾选", lambda: "stationImportPreview" in _page() and "import_selected" in _page()),
+            ("站点列表排版", lambda: "stationRowHtml" in _page() and "setStationsLayout" in _page()),
+            ("侧栏徽标补全", lambda: "badge-providers" in _page() and "badge-stations" in _page()),
         ],
     }
     
