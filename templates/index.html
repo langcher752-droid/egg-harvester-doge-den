@@ -3363,7 +3363,8 @@
         const d = await r.json();
         if (d.ok) {
           selectedKeyIds.clear();
-          toast(`已删除 ${d.deleted} 个鸡蛋`);
+          lastDeletedKey = { undoToken: d.undo_token, expiresAt: Date.now() + 9.5 * 60 * 1000 };
+          toast(`已删除 ${d.deleted} 个鸡蛋；按 ⌘Z 撤销`, 'deleted');
           loadKeys(true); loadStats(); updateBadges(true);
         } else toast('删除失败: ' + (d.error || '未知错误'), 'fail');
       } catch(e) { toast('删除异常: ' + e.message, 'fail'); }
@@ -3381,7 +3382,8 @@
       try {
         const r = await fetch('/keys/delete_invalid', { method: 'POST' });
         const d = await r.json();
-        toast(d.deleted ? `已清除 ${d.deleted} 个失效鸡蛋` : '没有失效鸡蛋需要清除');
+        if (d.deleted) { lastDeletedKey = { undoToken: d.undo_token, expiresAt: Date.now() + 9.5 * 60 * 1000 }; toast(`已清除 ${d.deleted} 个失效鸡蛋；按 ⌘Z 撤销`, 'deleted'); }
+        else toast('没有失效鸡蛋需要清除');
         loadKeys(true); loadStats(); updateBadges(true);
       } catch(e) { toast('清除失败: ' + e.message, 'fail'); }
     });
@@ -3565,7 +3567,7 @@
       const r = await fetch('/keys/delete', { method: 'POST', body: fd });
       const d = await r.json();
       if (d.ok || d.success) {
-        lastDeletedKey = { undoToken: d.undo_token, expiresAt: Date.now() + 10000 };
+        lastDeletedKey = { undoToken: d.undo_token, expiresAt: Date.now() + 9.5 * 60 * 1000 }; // 前端窗口略短于后端 10 分钟 TTL
         toast(`已删除；按 ⌘Z 撤销`, 'deleted');
         loadKeys(); loadStats(); updateBadges(true);
       }
@@ -3589,7 +3591,7 @@
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || '撤销失败');
       lastDeletedKey = null;
-      toast('已撤销删除，鸡蛋已恢复', 'restored');
+      toast(result.restored > 1 ? `已撤销删除，恢复 ${result.restored} 个鸡蛋` : '已撤销删除，鸡蛋已恢复', 'restored');
       loadKeys(); loadStats(); updateBadges(true);
     } catch (error) { toast('撤销失败：' + error.message, 'fail'); }
     finally { undoKeyBusy = false; }
