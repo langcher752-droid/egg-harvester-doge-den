@@ -15,7 +15,17 @@ import json
 import os
 import re
 import subprocess
+import sys
+import secrets
+import threading
+import time
 import uuid
+from collections import OrderedDict
+
+# NSFW 视觉模型依赖装在项目内 vendor/（不改动 App 自带 Python 的 site-packages）
+_VENDOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+if os.path.isdir(_VENDOR_DIR) and _VENDOR_DIR not in sys.path:
+    sys.path.insert(0, _VENDOR_DIR)
 
 from fastapi import FastAPI, UploadFile, File, Form, Body, BackgroundTasks, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
@@ -82,10 +92,234 @@ async def media_view(path: str):
         headers={"Cache-Control": "public, max-age=86400"},
     )
 
+# ---------- 媒体预览图 + 不适宜内容（NSFW）检测 ----------
+
+THUMB_DIR = os.path.join(static_dir, "thumbs")
+_FILES_INSPECT_MAX_BYTES = 16 * 1024 * 1024
+
+
+def _thumb_path(key: str) -> str:
+    os.makedirs(THUMB_DIR, exist_ok=True)
+    return os.path.join(THUMB_DIR, hashlib.md5(str(key).encode()).hexdigest() + ".jpg")
+
+
+def _thumb_url(key: str) -> str:
+    return "/media-thumb?ref=" + key.replace("%", "%25").replace(" ", "%20")
+
+
+@app.get("/media-thumb")
+async def media_thumb(ref: str, w: int = 520):
+    """媒体缩略图（图片缩放 / 视频抽首帧），带磁盘缓存。
+
+    ref 有两种：媒体相对路径（media/...）或群文件合成键（file:<id>，由 /files/inspect 预生成）。
+    """
+    import nsfw as nsfw_mod
+    if ref.startswith("file:"):
+        dst = _thumb_path(f"{ref}|{int(w)}") if w != 520 else _thumb_path(ref)
+        for cand in (dst, _thumb_path(ref)):
+            if os.path.exists(cand):
+                return FileResponse(cand, media_type="image/jpeg",
+                                    headers={"Cache-Control": "public, max-age=604800"})
+        raise HTTPException(404, "预览图还没生成")
+    path = _resolve_media_path(ref)
+    if not path or not os.path.exists(path):
+        raise HTTPException(404, "媒体不存在")
+    key = f"{ref}|{int(w)}"
+    dst = _thumb_path(key)
+    src_mtime = os.path.getmtime(path)
+    if not (os.path.exists(dst) and os.path.getmtime(dst) >= src_mtime):
+        data = await asyncio.to_thread(nsfw_mod.make_thumb, path, int(w))
+        if not data:
+            raise HTTPException(415, "无法生成预览图（格式不支持或解码失败）")
+        tmp = dst + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, dst)
+    return FileResponse(dst, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.get("/media-nsfw")
+async def media_nsfw(ref: str, refresh: int = 0):
+    """检测某个媒体是否疑似不适宜；结果缓存在 raw_messages.nsfw 上。"""
+    import nsfw as nsfw_mod
+    row = store.media_row_by_ref(ref)
+    if row and row.get("nsfw") is not None and not refresh:
+        return {
+            "ok": True, "cached": True, "nsfw": bool(row.get("nsfw")),
+            "score": row.get("nsfw_score") or 0, "reason": row.get("nsfw_reason") or "",
+        }
+    path = _resolve_media_path(ref)
+    if not path:
+        return {"ok": False, "error": "媒体不存在", "nsfw": False, "score": 0, "reason": ""}
+    res = await asyncio.to_thread(nsfw_mod.check_path, path, nsfw_mod.DEFAULT_THRESHOLD,
+                                 (row or {}).get("content") or "")
+    store.set_media_nsfw(ref, res.get("nsfw"), res.get("score"), res.get("reason"))
+    return {"ok": True, "cached": False, **res}
+
+
+_scan_state = {"running": False, "done": 0, "total": 0, "flagged": 0, "failed": 0, "last_error": ""}
+
+
+def _scan_worker(limit: int, force: bool = False, before_id: int = 0):
+    import nsfw as nsfw_mod
+    rows = store.scan_targets(limit, force=force, before_id=before_id or None)
+    _scan_state.update(running=True, done=0, total=len(rows), flagged=0, failed=0, last_error="")
+    for r in rows:
+        try:
+            ref = r.get("media_ref")
+            path = _resolve_media_path(ref)
+            res = nsfw_mod.check_path(path, context=r.get("content") or "") if path else \
+                {"nsfw": False, "score": 0, "reason": "文件不存在"}
+            store.set_media_nsfw(ref, res.get("nsfw"), res.get("score"), res.get("reason"))
+            if res.get("nsfw"):
+                _scan_state["flagged"] += 1
+        except Exception as e:  # 单个失败不影响整批
+            _scan_state["failed"] += 1
+            _scan_state["last_error"] = str(e)[:200]
+        finally:
+            _scan_state["done"] += 1
+    _scan_state["running"] = False
+
+
+@app.post("/media-scan")
+async def media_scan(limit: int = Form(200), force: int = Form(0), before_id: int = Form(0)):
+    """批量扫描历史媒体（图片/视频），把结果写回 raw_messages.nsfw。"""
+    if _scan_state.get("running"):
+        return {"ok": False, "error": "已有扫描在进行中", **_scan_state}
+    import threading
+    t = threading.Thread(target=_scan_worker, args=(int(limit), bool(force), int(before_id)), daemon=True)
+    t.start()
+    return {"ok": True, "started": True, "limit": int(limit)}
+
+
+@app.get("/media-scan/status")
+async def media_nsfw_status():
+    return {"ok": True, **_scan_state, "stats": store.nsfw_stats()}
+
+
+@app.post("/files/inspect/{file_id}")
+async def file_inspect(file_id: int):
+    """群文件「预检」：先做文件名/标题关键词判断，图片/视频再抓远端内容做检测。
+    命中即标记 nsfw=1（后续下载会被拦截）。"""
+    import nsfw as nsfw_mod
+    row = store.file_by_id(file_id)
+    if not row:
+        return {"ok": False, "error": "not found"}
+    meta = _parse_file_meta(row.get("raw_json"), row.get("content") or "")
+    name = meta.get("name") or meta.get("file") or row.get("content") or ""
+    title = api_extensions.get_file_title(file_id) or ""
+    kind = nsfw_mod.kind_of(name)
+
+    hit, word = nsfw_mod.keyword_hit(f"{name} {title} {row.get('content') or ''}")
+    if hit:
+        store.set_msg_nsfw(row["platform"], row["chat_id"], row["msg_key"], True, 0.99, f"名称/描述命中敏感词「{word}」")
+        return {"ok": True, "nsfw": True, "score": 0.99, "reason": f"名称/描述命中敏感词「{word}」",
+                "kind": kind, "thumb": "", "name": name}
+
+    thumb = ""
+    if kind in ("image", "video"):
+        size = int(meta.get("size") or 0)
+        if size and size > _FILES_INSPECT_MAX_BYTES:
+            reason = f"文件超过 {_FILES_INSPECT_MAX_BYTES // (1024 * 1024)}MB，未做内容检测"
+            store.set_msg_nsfw(row["platform"], row["chat_id"], row["msg_key"], -1, 0.0, reason)
+            return {"ok": True, "nsfw": -1, "score": 0, "reason": reason,
+                    "kind": kind, "thumb": "", "name": name}
+        url = meta.get("url") or ""
+        if not url:
+            file_id_str = str(meta.get("id") or meta.get("file_id") or "")
+            busid = meta.get("busid") or 0
+            if file_id_str:
+                data = napcat.get_group_file_url(row["chat_id"], file_id_str, busid)
+                if isinstance(data, dict):
+                    url = data.get("url") or ""
+        if url:
+            raw = await asyncio.to_thread(media.fetch_url, url)
+            if raw:
+                if kind == "image":
+                    res = await asyncio.to_thread(nsfw_mod.check_image_bytes, raw, nsfw_mod.DEFAULT_THRESHOLD, name)
+                    key = f"file:{file_id}"
+                    dst = _thumb_path(key)
+                    try:
+                        from PIL import Image, ImageOps
+                        import io as _io
+                        img = Image.open(_io.BytesIO(raw))
+                        img = ImageOps.exif_transpose(img)
+                        if img.mode in ("RGBA", "LA", "P"):
+                            bg = Image.new("RGB", img.size, (255, 255, 255))
+                            img = img.convert("RGBA")
+                            bg.paste(img, mask=img.split()[-1])
+                            img = bg
+                        img = img.convert("RGB")
+                        img.thumbnail((520, 520))
+                        img.save(dst, format="JPEG", quality=78, optimize=True)
+                        thumb = _thumb_url(key)
+                    except Exception:
+                        thumb = ""
+                else:
+                    # 视频：写临时文件后用 ffmpeg 抽首帧检测（不落媒体库、不外出）
+                    import tempfile
+                    tmp = None
+                    try:
+                        ext = os.path.splitext(name)[1] or ".mp4"
+                        fd, tmp = tempfile.mkstemp(suffix=ext)
+                        with os.fdopen(fd, "wb") as fh:
+                            fh.write(raw)
+                        res = await asyncio.to_thread(nsfw_mod.check_video_path, tmp)
+                        tbytes = await asyncio.to_thread(nsfw_mod.make_thumb, tmp)
+                        if tbytes:
+                            key = f"file:{file_id}"
+                            dst = _thumb_path(key)
+                            with open(dst, "wb") as fh:
+                                fh.write(tbytes)
+                            thumb = _thumb_url(key)
+                    finally:
+                        if tmp and os.path.exists(tmp):
+                            try:
+                                os.unlink(tmp)
+                            except OSError:
+                                pass
+                store.set_msg_nsfw(row["platform"], row["chat_id"], row["msg_key"],
+                                   bool(res.get("nsfw")), res.get("score") or 0,
+                                   res.get("reason") or "", thumb_ref=thumb or None)
+                return {"ok": True, "nsfw": bool(res.get("nsfw")), "score": res.get("score") or 0,
+                        "reason": res.get("reason") or "", "thumb": thumb, "kind": kind, "name": name,
+                        "tier": res.get("tier"), "checked": res.get("checked")}
+
+        reason = "无法获取文件地址（链接可能已过期），未做内容检测"
+        store.set_msg_nsfw(row["platform"], row["chat_id"], row["msg_key"], -1, 0.0, reason)
+        return {"ok": True, "nsfw": -1, "score": 0, "reason": reason,
+                "kind": kind, "thumb": "", "name": name}
+
+    # 其他类型（压缩包/文档）不做内容检测，只显示了类型图标
+    store.set_msg_nsfw(row["platform"], row["chat_id"], row["msg_key"], False, 0.0, "")
+    return {"ok": True, "nsfw": False, "score": 0, "reason": "", "kind": kind, "thumb": "", "name": name}
+
+
 CQ_RE = re.compile(r"\[CQ:[^\]]*\]")
 
 store.init()
 intel.init_intel()
+
+
+def _warm_nsfw_model():
+    """启动后异步预热 NSFW 模型，避免第一个检测请求等 10s+。"""
+    try:
+        import threading
+        def _run():
+            try:
+                import nsfw as _n
+                if _n.model_available():
+                    import nsfw_model as _m
+                    _m._get_session()
+            except Exception:
+                pass
+        threading.Thread(target=_run, daemon=True).start()
+    except Exception:
+        pass
+
+
+_warm_nsfw_model()
 import sqlite3 as _sq
 from config import DB_PATH as _DB
 _conn0 = _sq.connect(_DB, timeout=15)
@@ -95,6 +329,44 @@ except _sq.OperationalError:
     pass
 _conn0.commit()
 _conn0.close()
+
+
+# Delete undo data is deliberately process-local: tokens are opaque and the
+# secret-bearing snapshots never cross the HTTP boundary.  Bound both age and
+# number of batches so an unattended UI cannot retain unbounded credentials.
+UNDO_TTL_SECONDS = 10 * 60
+UNDO_MAX_BATCHES = 20
+_undo_lock = threading.Lock()
+_undo_batches = OrderedDict()
+
+
+def _store_undo_batch(snapshots):
+    if not snapshots:
+        return None
+    now = time.monotonic()
+    token = secrets.token_urlsafe(32)
+    with _undo_lock:
+        for old_token, (_created, _snapshots) in list(_undo_batches.items()):
+            if now - _created >= UNDO_TTL_SECONDS:
+                _undo_batches.pop(old_token, None)
+        _undo_batches[token] = (now, snapshots)
+        while len(_undo_batches) > UNDO_MAX_BATCHES:
+            _undo_batches.popitem(last=False)
+    return token
+
+
+def _take_undo_batch(token):
+    if not isinstance(token, str) or not token.strip():
+        return None
+    now = time.monotonic()
+    with _undo_lock:
+        entry = _undo_batches.pop(token.strip(), None)
+        if not entry:
+            return None
+        created, snapshots = entry
+        if now - created >= UNDO_TTL_SECONDS:
+            return None
+        return snapshots
 
 
 def _event_text(ev: dict) -> str:
@@ -922,57 +1194,56 @@ async def media_purge(mode: str = Form("older_than"), days: int = Form(7), keep_
 @app.post("/keys/delete")
 async def delete_key(key_id: int = Form(...)):
     """删除一个已入库的鸡蛋（Key）。"""
-    from db import _conn
+    from db import delete_keys_with_snapshots
 
-    def _del():
-        c = _conn()
-        cur = c.execute("DELETE FROM keys WHERE id=?", (key_id,))
-        c.commit()
-        n = cur.rowcount
-        c.close()
-        return n
+    snapshots = await asyncio.to_thread(delete_keys_with_snapshots, [key_id])
+    return {"ok": bool(snapshots), "deleted": len(snapshots),
+            "undo_token": _store_undo_batch(snapshots)}
 
-    n = await asyncio.to_thread(_del)
-    return {"ok": n > 0, "deleted": n}
+
+@app.post("/keys/restore")
+async def restore_deleted_key(payload: dict = Body(...)):
+    """Restore one key deleted in the current local UI session (Cmd/Ctrl+Z)."""
+    from db import restore_key
+
+    token = payload.get("undo_token") if isinstance(payload, dict) else None
+    snapshots = _take_undo_batch(token)
+    if snapshots is None:
+        return {"ok": False, "restored": 0, "skipped": 0,
+                "error": "撤销令牌已过期或不存在"}
+    restored = 0
+    skipped = 0
+    for snapshot in snapshots:
+        if await asyncio.to_thread(restore_key, snapshot):
+            restored += 1
+        else:
+            skipped += 1
+    return {"ok": restored > 0, "restored": restored, "skipped": skipped,
+            "error": None if restored > 0 else "鸡蛋已存在或撤销数据无效"}
 
 
 @app.post("/keys/delete_batch")
 async def delete_keys_batch(key_ids: str = Form(...)):
     """批量删除鸡蛋：key_ids 为逗号分隔的 id；only_invalid=1 时只删失效的。"""
-    from db import _conn
+    from db import delete_keys_with_snapshots
 
     wanted = [int(x) for x in str(key_ids or "").replace("，", ",").split(",") if x.strip().isdigit()]
     if not wanted:
         return {"ok": False, "deleted": 0, "error": "没有传入有效的 key id"}
 
-    def _del():
-        c = _conn()
-        placeholders = ",".join("?" * len(wanted))
-        cur = c.execute(f"DELETE FROM keys WHERE id IN ({placeholders})", wanted)
-        c.commit()
-        n = cur.rowcount
-        c.close()
-        return n
-
-    n = await asyncio.to_thread(_del)
-    return {"ok": n > 0, "deleted": n, "requested": len(wanted)}
+    snapshots = await asyncio.to_thread(delete_keys_with_snapshots, wanted)
+    return {"ok": bool(snapshots), "deleted": len(snapshots), "requested": len(wanted),
+            "undo_token": _store_undo_batch(snapshots)}
 
 
 @app.post("/keys/delete_invalid")
 async def delete_invalid_keys():
     """一键清空所有已失效（status != 'valid'）的鸡蛋。"""
-    from db import _conn
+    from db import delete_keys_with_snapshots
 
-    def _del():
-        c = _conn()
-        cur = c.execute("DELETE FROM keys WHERE status IS NULL OR status != 'valid'")
-        c.commit()
-        n = cur.rowcount
-        c.close()
-        return n
-
-    n = await asyncio.to_thread(_del)
-    return {"ok": True, "deleted": n}
+    snapshots = await asyncio.to_thread(delete_keys_with_snapshots, invalid_only=True)
+    return {"ok": True, "deleted": len(snapshots),
+            "undo_token": _store_undo_batch(snapshots)}
 
 
 # ---------- 情报简报系统 ----------
@@ -1012,19 +1283,30 @@ async def files_page():
 
 @app.get("/files/list")
 async def files_list():
+    import nsfw as nsfw_mod
     rows = store.pending_files()
     out = []
     for r in rows:
         meta = _parse_file_meta(r.get("raw_json"), r.get("content") or "")
         name = meta.get("name") or meta.get("file") or (r.get("content") or "").replace("[群文件] ", "")
+        kind = nsfw_mod.kind_of(name)
         out.append({
             "id": r["id"],
             "name": name,
             "size": _human(int(meta.get("size") or 0)) if int(meta.get("size") or 0) > 0 else "大小未知",
+            "size_bytes": int(meta.get("size") or 0),
             "group": r.get("chat_name") or r.get("chat_id"),
             "chat_id": r.get("chat_id"),
             "time": _ts_str(r.get("ts")),
             "title": api_extensions.get_file_title(r["id"]),
+            "kind": kind,
+            "nsfw": r.get("nsfw"),
+            "nsfw_reason": r.get("nsfw_reason") or "",
+            "thumb": _thumb_url(f"file:{r['id']}") if r.get("thumb_ref") else "",
+            # 图片超过 8MB 时本地不下载、只做关键词判定，避免每次刷新都白跑一次
+            "inspectable": kind in ("image", "video")
+                           and (kind != "image" or int(meta.get("size") or 0) <= 16 * 1024 * 1024),
+            "media_ref": r.get("media_ref") or "",
         })
     return {"count": len(out), "files": out}
 
@@ -1106,6 +1388,9 @@ async def files_action(id: int = Form(...), action: str = Form(...)):
         return {"ok": True, "action": "ignored"}
 
     if action == "download":
+        if row.get("nsfw"):
+            return {"ok": False, "blocked": True,
+                    "error": f"疑似不适宜内容，已拦截下载：{row.get('nsfw_reason') or '检测命中'}"}
         meta = _parse_file_meta(row.get("raw_json"), row.get("content") or "")
         file_id = str(meta.get("id") or meta.get("file_id") or "")
         busid = meta.get("busid") or 0
@@ -1121,6 +1406,13 @@ async def files_action(id: int = Form(...), action: str = Form(...)):
         raw = media.fetch_url(dl)
         if not raw:
             return {"ok": False, "error": "下载失败"}
+        # 下载前做一次不适宜内容检测：命中则不落盘
+        import nsfw as nsfw_mod
+        probe = nsfw_mod.check_image_bytes(raw) if nsfw_mod.kind_of(name) == "image" else None
+        if probe and probe.get("nsfw"):
+            store.set_msg_nsfw(platform, chat_id, msg_key, True, probe.get("score"), probe.get("reason"))
+            return {"ok": False, "blocked": True,
+                    "error": f"疑似不适宜内容，已拦截下载：{probe.get('reason')}"}
         ext = os.path.splitext(name)[1] or None
         save_dir = api_extensions.get_setting("download_dir", "") or None
         rel, md5 = media.save_bytes(raw, platform, chat_id, file_id or msg_key, ext=ext, base=save_dir)
@@ -1143,6 +1435,10 @@ async def file_stream_download(file_id: int, save: int = 0):
     row = store.file_by_id(file_id)
     if not row:
         return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+    if row.get("nsfw"):
+        return JSONResponse({"ok": False, "blocked": True,
+                             "error": f"疑似不适宜内容，已拦截下载：{row.get('nsfw_reason') or '检测命中'}"},
+                            status_code=403)
     meta = _parse_file_meta(row.get("raw_json"), row.get("content") or "")
     file_id_str = str(meta.get("id") or meta.get("file_id") or "")
     busid = meta.get("busid") or 0

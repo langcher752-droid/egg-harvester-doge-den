@@ -142,6 +142,83 @@ def mark_key_test_failed(base_url, api_key, error):
     return cur.rowcount
 
 
+def delete_key_with_snapshot(key_id):
+    snapshots = delete_keys_with_snapshots([key_id])
+    return snapshots[0] if snapshots else None
+
+
+def delete_keys_with_snapshots(key_ids=None, invalid_only=False):
+    """Delete keys and return their private snapshots as one transaction.
+
+    The caller must keep the returned values private.  Selecting and deleting
+    under one write transaction prevents an undo token from describing a row
+    which was concurrently changed or deleted.
+    """
+    c = _conn()
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        columns = [item[1] for item in c.execute("PRAGMA table_info(keys)")]
+        if invalid_only:
+            where, args = "status IS NULL OR status != 'valid'", []
+        else:
+            ids = [int(value) for value in (key_ids or [])]
+            if not ids:
+                c.rollback()
+                return []
+            placeholders = ",".join("?" for _ in ids)
+            where, args = f"id IN ({placeholders})", ids
+        rows = c.execute(f"SELECT * FROM keys WHERE {where}", args).fetchall()
+        if rows:
+            c.execute(f"DELETE FROM keys WHERE {where}", args)
+        c.commit()
+        return [dict(zip(columns, row)) for row in rows]
+    except Exception:
+        c.rollback()
+        raise
+    finally:
+        c.close()
+
+
+def restore_key(snapshot):
+    if not isinstance(snapshot, dict) or not snapshot.get("api_key_hash"):
+        return False
+    columns = [
+        "id", "source", "base_url", "api_key_hash", "api_key_masked", "api_key",
+        "provider", "models", "status", "latency_ms", "first_tested", "last_tested", "note",
+    ]
+    values = [snapshot.get(column) for column in columns]
+    c = _conn()
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        # A key may have been re-ingested after deletion.  The hash is the
+        # logical identity; never create a duplicate.  Preserve the old id
+        # where it is still available, otherwise let SQLite allocate a new id.
+        existing = c.execute("SELECT 1 FROM keys WHERE api_key_hash=?", (snapshot["api_key_hash"],)).fetchone()
+        if existing:
+            c.rollback()
+            return False
+        try:
+            cur = c.execute(
+                "INSERT INTO keys(" + ",".join(columns) + ") VALUES (" + ",".join("?" for _ in columns) + ")",
+                values,
+            )
+        except sqlite3.IntegrityError:
+            # The original numeric id is occupied by another key.
+            values_without_id = values[1:]
+            cur = c.execute(
+                "INSERT INTO keys(" + ",".join(columns[1:]) + ") VALUES (" + ",".join("?" for _ in columns[1:]) + ")",
+                values_without_id,
+            )
+        restored = cur.rowcount > 0
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
+    finally:
+        c.close()
+    return restored
+
+
 def list_iconmemes():
     c = _conn()
     rows = c.execute(

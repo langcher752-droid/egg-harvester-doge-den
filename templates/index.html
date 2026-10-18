@@ -659,6 +659,41 @@
     color: var(--text-muted);
   }
   
+  /* 群文件预览图 */
+  .file-card .file-row { flex-wrap: nowrap; align-items: flex-start; }
+  .file-card .file-info { flex: 1 1 0; min-width: 0; }
+  .file-thumb {
+    width: 86px; height: 86px; flex: 0 0 86px;
+    border-radius: 8px; overflow: hidden;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .file-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .file-thumb.file-thumb-pending, .file-thumb.file-thumb-icon {
+    flex-direction: column; gap: 2px; font-size: 20px; color: var(--text-muted);
+  }
+  .file-thumb.file-thumb-pending em, .file-thumb.file-thumb-blocked em { font-size: 10px; font-style: normal; }
+  .file-thumb.file-thumb-blocked {
+    flex-direction: column; gap: 2px; font-size: 20px;
+    background: rgba(220, 38, 38, 0.08); border-color: rgba(220, 38, 38, 0.35); color: #b91c1c;
+  }
+  .file-warn {
+    margin-top: 6px; font-size: 11px; color: #b91c1c;
+    background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25);
+    border-radius: 6px; padding: 4px 8px;
+  }
+
+  /* 不适宜内容（NSFW）拦截提示 */
+  .nsfw-box { background: rgba(220, 38, 38, 0.06); border: 1px dashed rgba(220, 38, 38, 0.4); border-radius: 10px; padding: 10px 12px; max-width: 320px; }
+  .nsfw-warn { display: flex; gap: 8px; align-items: flex-start; }
+  .nsfw-icon { font-size: 18px; line-height: 1; }
+  .nsfw-title { font-size: 12.5px; font-weight: 600; color: #b91c1c; }
+  .nsfw-reason { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .nsfw-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .btn-mini { font-size: 11px; padding: 2px 8px; }
+
   .msg-media-box {
     margin-top: 8px;
   }
@@ -2157,6 +2192,8 @@
     <section class="view-panel" id="view-files">
       <div style="max-width:900px; margin:0 auto 16px auto; background:var(--bg-surface); padding:12px 16px; border-radius:8px; border:1px solid var(--border); font-size:12px; color:var(--text-secondary); display:flex; justify-content:space-between; align-items:center;">
         <span><i class="ico" style="--ico:url(/static/icons/info@2x.png)"></i> 策略：≤20MB 群文件由后台自动下载，>20MB 需人工决策是否拉取。</span>
+        <button class="btn-icon" onclick="scanMediaLibrary()">批量体检媒体</button>
+        <span id="files-scan-status" style="font-size:12px;color:var(--text-muted);margin-left:6px;"></span>
         <button class="btn-icon" onclick="loadFiles()">刷新待办</button>
       </div>
       <details class="files-browser" id="files-browser"><summary>浏览当前群的全部文件消息</summary><div class="browser-body"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select class="select-box" id="files-chat-select" onchange="browseChatFiles()"><option value="">先选择会话</option></select><button class="btn-ghost" onclick="browseChatFiles()">加载文件消息</button></div><div id="files-browser-list" class="empty-sub" style="margin-top:10px;">使用已有消息接口读取，不会虚构文件。</div></div></details>
@@ -2210,7 +2247,7 @@
           </div>
           <div class="provider-head-actions">
             <label class="mini-check"><input type="checkbox" id="provider-only-bad" onchange="renderProviders()"> 只看失效</label>
-            <button class="btn-primary" onclick="testAllProviders()"><img class="doge-face sm" src="/static/doge/stickers/46_side_eye.webp" alt=""> 全部体检</button>
+             <button class="btn-primary" onclick="testAllProviders()"><img class="doge-face sm" src="/static/doge/stickers/46_ai_side_eye.webp" alt=""> 全部体检</button>
             <button class="btn-danger" onclick="deleteBadProviders()"><img class="doge-face sm" src="/static/doge/stickers/20_devil_horns.webp" alt=""> 删除失效的</button>
           </div>
         </div>
@@ -3527,10 +3564,44 @@
       fd.append('key_id', String(id));
       const r = await fetch('/keys/delete', { method: 'POST', body: fd });
       const d = await r.json();
-      if (d.ok || d.success) { toast(`已删除`); loadKeys(); loadStats(); updateBadges(true); }
+      if (d.ok || d.success) {
+        lastDeletedKey = { undoToken: d.undo_token, expiresAt: Date.now() + 10000 };
+        toast(`已删除；按 ⌘Z 撤销`, 'deleted');
+        loadKeys(); loadStats(); updateBadges(true);
+      }
       else toast('删除失败: ' + (d.error || '未知错误'));
     } catch (e) { toast('删除异常: ' + e.message); }
   }
+
+  let lastDeletedKey = null;
+  let undoKeyBusy = false;
+  async function undoDeletedKey() {
+    if (undoKeyBusy || !lastDeletedKey || lastDeletedKey.expiresAt < Date.now()) {
+      toast('没有可撤销的删除');
+      return;
+    }
+    undoKeyBusy = true;
+    try {
+      const response = await fetch('/keys/restore', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({undo_token: lastDeletedKey.undoToken})
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || '撤销失败');
+      lastDeletedKey = null;
+      toast('已撤销删除，鸡蛋已恢复', 'restored');
+      loadKeys(); loadStats(); updateBadges(true);
+    } catch (error) { toast('撤销失败：' + error.message, 'fail'); }
+    finally { undoKeyBusy = false; }
+  }
+
+  document.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' &&
+        !event.shiftKey && !event.altKey && !event.target.closest('input, textarea, select, [contenteditable="true"]')) {
+      event.preventDefault();
+      undoDeletedKey();
+    }
+  });
 
   // 通用确认弹窗（替代系统 alert，风格统一）
   function showConfirm(title, message, okText, cancelText, onOk) {
@@ -3828,6 +3899,8 @@
     if (main) main.classList.toggle('single-chat', !!currentChat.chat_id);
     document.getElementById('stream-search').value = '';
     renderChatList();
+    // 先在本地清除红点，再等待消息流请求；applyStream 仍会在内容加载后补一次持久化。
+    markChatRead(platform, chatId);
     loadStream();
   }
 
@@ -3939,11 +4012,13 @@
     if (currentChat.chat_id) markChatRead(currentChat.platform, currentChat.chat_id);
   }
 
-  // 会话已读：10 秒内不重复写库（新消息进来仍会标掉）
-  let lastMarkReadAt = 0;
+  // 会话已读：先立即清除当前列表红点，再异步持久化，避免点击后视觉延迟。
   async function markChatRead(platform, chatId) {
-    if (Date.now() - lastMarkReadAt < 10000) return;
-    lastMarkReadAt = Date.now();
+    const current = chatData.find(item => item.platform === platform && item.chat_id === chatId);
+    if (!current || !current.unread) return;
+    current.unread = 0;
+    lastChatSig = '';
+    renderChatList();
     try {
       const fd = new FormData();
       fd.append('platform', platform || '');
@@ -4274,6 +4349,120 @@
   }
 
   // 5. 群文件决策 (Files)
+  // ---------- 群文件：预览图 + 不适宜内容检测 ----------
+  function fileCardHtml(f) {
+    const nsfw = Number(f.nsfw) === 1;
+    let thumb;
+    if (nsfw) {
+      thumb = `<div class="file-thumb file-thumb-blocked" title="${esc(f.nsfw_reason || '疑似不适宜内容')}">
+                 <span>⚠️</span><em>已拦截</em></div>`;
+    } else if (f.thumb) {
+      thumb = `<div class="file-thumb"><img src="${f.thumb}" alt="预览"
+                 onclick="event.stopPropagation(); openLightbox('${f.thumb}')"></div>`;
+    } else if (Number(f.nsfw) === -1) {
+      thumb = `<div class="file-thumb file-thumb-icon" title="${esc(f.nsfw_reason || '未做内容检测')}">
+                 <span>🔍</span><em>未检测</em></div>`;
+    } else if (f.inspectable) {
+      thumb = `<div class="file-thumb file-thumb-pending" onclick="inspectFile(${f.id})">
+                 <span>🔍</span><em>检测预览</em></div>`;
+    } else {
+      const icons = { archive: '🗜️', doc: '📄', video: '🎬', other: '📦' };
+      thumb = `<div class="file-thumb file-thumb-icon"><span>${icons[f.kind] || '📦'}</span></div>`;
+    }
+    const soft = /擦边|暴露|低俗/.test(f.nsfw_reason || '');
+    const warn = nsfw ? `<div class="file-warn">⚠️ ${soft ? '疑似擦边/暴露内容' : '不适宜内容'}，已禁止下载与预览（${esc(f.nsfw_reason || '检测命中')}）</div>` : '';
+    return `
+        <div class="file-card" data-file-id="${f.id}">
+          <div class="file-row">
+            ${thumb}
+            <div class="file-info">
+              ${f.title ? `<div class="name">${esc(f.title)}</div>
+              <div class="meta" style="font-size:11px;color:var(--text-muted);">原名: ${esc(f.name)}</div>` : `<div class="name">${esc(f.name)}</div>`}
+              <div class="meta">${esc(f.group)} · <strong>${esc(f.size)}</strong> · ${esc(f.time)}</div>
+              ${warn}
+            </div>
+            <div class="file-actions">
+              ${nsfw ? `<button class="btn-harvest-quick" disabled title="疑似不适宜内容"><i class="ico" style="--ico:url(/static/icons/download@2x.png)"></i> 已拦截</button>`
+                     : `<button class="btn-harvest-quick" onclick="downloadFile(${f.id}, '${esc(f.title || f.name).replace(/'/g, "\\'")}')"><i class="ico" style="--ico:url(/static/icons/download@2x.png)"></i> 下载入库</button>`}
+              <button class="btn-icon" onclick="fileAction(${f.id}, 'ignore')"><i class="ico" style="--ico:url(/static/icons/close@2x.png)"></i> 忽略</button>
+              <button class="btn-icon" onclick="viewFileContext('${esc(f.chat_id)}')"><i class="ico" style="--ico:url(/static/icons/eye@2x.png)"></i> 上下文</button>
+              <button class="btn-icon" onclick="summarizeFile(${f.id})"><i class="ico" style="--ico:url(/static/icons/ai@2x.png)"></i> AI总结</button>
+              ${f.inspectable ? `<button class="btn-icon" onclick="inspectFile(${f.id}, true)"><i class="ico" style="--ico:url(/static/icons/eye@2x.png)"></i> 重新检测</button>` : ''}
+            </div>
+          </div>
+          <div id="dl-progress-${f.id}" style="display:none;margin-top:2px;flex-direction:column;gap:4px;">
+            <div style="height:6px;background:var(--bg-base);border-radius:3px;overflow:hidden;">
+              <div id="dl-bar-${f.id}" style="height:100%;width:0%;background:var(--accent-blue);transition:width 0.15s;"></div>
+            </div>
+            <div id="dl-text-${f.id}" style="font-size:11px;color:var(--text-muted);"></div>
+          </div>
+        </div>`;
+  }
+
+  // 批量体检：扫描媒体库里的图片/视频，结果写入 raw_messages.nsfw
+  let mediaScanTimer = null;
+  async function scanMediaLibrary(force) {
+    try {
+      const fd = new FormData();
+      fd.append('limit', '60');
+      if (force) fd.append('force', '1');
+      const res = await fetch('/media-scan', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!data.ok) { toast(data.error || '启动失败', 'sad'); return; }
+      toast('已开始体检 ' + (data.total || 60) + ' 个媒体', 'happy');
+      if (mediaScanTimer) clearInterval(mediaScanTimer);
+      mediaScanTimer = setInterval(async () => {
+        try {
+          const st = await (await fetch('/media-scan/status')).json();
+          const prog = document.getElementById('files-scan-status');
+          if (prog) prog.textContent = '完成 ' + (st.done || 0) + '/' + (st.total || 0) + (st.flagged ? '，命中 ' + st.flagged : '');
+          if (!st.running) {
+            clearInterval(mediaScanTimer);
+            mediaScanTimer = null;
+            toast('媒体体检完成：' + (st.done || 0) + ' 个，命中 ' + (st.flagged || 0) + ' 个', 'happy');
+            loadFiles();
+            loadStats();
+          }
+        } catch (e) { clearInterval(mediaScanTimer); mediaScanTimer = null; }
+      }, 2500);
+    } catch (e) {
+      toast('媒体体检失败：' + e.message, 'sad');
+    }
+  }
+
+  // 自动检测：只处理还没检测过的图片/视频，最多 10 个，串行避免打爆上游
+  async function autoInspectFiles(files) {
+    const todo = files.filter(f => f.inspectable && f.nsfw === null).slice(0, 10);  // -1 表示无法检测，不再重试
+    for (const f of todo) {
+      await inspectFile(f.id);
+    }
+  }
+
+  async function inspectFile(id, manual) {
+    const card = document.querySelector(`.file-card[data-file-id="${id}"]`);
+    if (card) {
+      const thumb = card.querySelector('.file-thumb');
+      if (thumb) thumb.innerHTML = '<span class="doge-testing">检测中…</span>';
+    }
+    try {
+      const d = await (await fetch(`/files/inspect/${id}`, { method: 'POST' })).json();
+      // 就地刷新整张卡片（data-file-id 不变，进度条元素会重建）
+      const files = await (await fetch('/files/list')).json();
+      const f = (files.files || []).find(x => x.id === id);
+      if (f && card) {
+        card.outerHTML = fileCardHtml(f);
+      }
+      if (d.nsfw) toast('⚠️ 该文件疑似不适宜内容，已禁止下载与预览');
+      else if (manual) toast(d.reason || '检测通过');
+    } catch (e) {
+      if (manual) toast('检测失败: ' + e.message);
+      if (card) {
+        const thumb = card.querySelector('.file-thumb');
+        if (thumb) thumb.innerHTML = '<span>🔍</span><em>检测失败</em>';
+      }
+    }
+  }
+
   async function loadFiles() {
     const el = document.getElementById('files-list');
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">加载待办文件中...</div>';
@@ -4293,29 +4482,8 @@
         return;
       }
 
-      el.innerHTML = files.map(f => `
-        <div class="file-card">
-          <div class="file-row">
-            <div class="file-info">
-              ${f.title ? `<div class="name">${esc(f.title)}</div>
-              <div class="meta" style="font-size:11px;color:var(--text-muted);">原名: ${esc(f.name)}</div>` : `<div class="name">${esc(f.name)}</div>`}
-              <div class="meta">${esc(f.group)} · <strong>${esc(f.size)}</strong> · ${esc(f.time)}</div>
-            </div>
-            <div class="file-actions">
-              <button class="btn-harvest-quick" onclick="downloadFile(${f.id}, '${esc(f.title || f.name).replace(/'/g, "\\'")}')"><i class="ico" style="--ico:url(/static/icons/download@2x.png)"></i> 下载入库</button>
-              <button class="btn-icon" onclick="fileAction(${f.id}, 'ignore')"><i class="ico" style="--ico:url(/static/icons/close@2x.png)"></i> 忽略</button>
-              <button class="btn-icon" onclick="viewFileContext('${esc(f.chat_id)}')"><i class="ico" style="--ico:url(/static/icons/eye@2x.png)"></i> 上下文</button>
-              <button class="btn-icon" onclick="summarizeFile(${f.id})"><i class="ico" style="--ico:url(/static/icons/ai@2x.png)"></i> AI总结</button>
-            </div>
-          </div>
-          <div id="dl-progress-${f.id}" style="display:none;margin-top:2px;flex-direction:column;gap:4px;">
-            <div style="height:6px;background:var(--bg-base);border-radius:3px;overflow:hidden;">
-              <div id="dl-bar-${f.id}" style="height:100%;width:0%;background:var(--accent-blue);transition:width 0.15s;"></div>
-            </div>
-            <div id="dl-text-${f.id}" style="font-size:11px;color:var(--text-muted);"></div>
-          </div>
-        </div>
-      `).join('');
+      el.innerHTML = files.map(fileCardHtml).join('');
+      autoInspectFiles(files);
     } catch(e) {
       el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--accent-red);">加载文件列表失败: ${e.message}</div>`;
     }
@@ -4559,11 +4727,65 @@
     if (!m.media_ref) return '';
     const ref = m.media_ref;
     const viewUrl = ref.toLowerCase().endsWith('.wxgf') ? `/media-view/${ref}` : `/media/${ref}`;
-    if (/\.(jpg|jpeg|png|gif|webp|wxgf)$/i.test(ref)) {
+    const isImg = /\.(jpg|jpeg|png|gif|webp|wxgf)$/i.test(ref);
+    const isVid = /\.(mp4|mov|m4v|mkv|avi|webm)$/i.test(ref);
+    // 疑似不适宜内容：只给警告条，不渲染图片/视频本身
+    if (Number(m.nsfw) === 1) {
+      const rawReason = m.nsfw_reason || '疑似不适宜内容';
+      const reason = esc(rawReason);
+      const soft = /擦边|暴露|低俗|tier:borderline/.test(rawReason);
+      const title = soft ? '已拦截预览 · 疑似擦边/暴露' : '已拦截预览 · 不适宜内容';
+      return `<div class="msg-media-box nsfw-box" title="${reason}">
+                <div class="nsfw-warn">
+                  <span class="nsfw-icon">⚠️</span>
+                  <div>
+                    <div class="nsfw-title">${title}</div>
+                    <div class="nsfw-reason">${reason}</div>
+                    <div class="nsfw-actions">
+                      <button class="btn-ghost btn-mini" onclick="event.stopPropagation(); nsfwReveal(this, '${viewUrl}')">仍要查看</button>
+                      <button class="btn-ghost btn-mini" onclick="event.stopPropagation(); inspectMedia(this, '${esc(ref)}')">重新检测</button>
+                    </div>
+                  </div>
+                </div>
+              </div>`;
+    }
+    if (isImg) {
       return `<div class="msg-media-box"><img src="${viewUrl}" class="msg-media-img"
                 onclick="event.stopPropagation(); openLightbox('${viewUrl}')" alt="图片" loading="lazy"></div>`;
     }
+    if (isVid) {
+      return `<div class="msg-media-box"><video src="${viewUrl}" class="msg-media-img" controls preload="metadata"
+                style="max-width:320px;border-radius:10px;"></video></div>`;
+    }
     return `<div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-top:6px;">${esc(ref)}</div>`;
+  }
+
+  function nsfwReveal(btn, url) {
+    const box = btn.closest('.nsfw-box');
+    if (!box) return;
+    box.classList.remove('nsfw-box');
+    box.innerHTML = `<img src="${url}" class="msg-media-img" alt="图片" loading="lazy">`;
+  }
+
+  async function inspectMedia(btn, ref) {
+    btn.disabled = true;
+    btn.textContent = '检测中…';
+    try {
+      const d = await (await fetch('/media-nsfw?ref=' + encodeURIComponent(ref) + '&refresh=1')).json();
+      btn.disabled = false;
+      btn.textContent = d.nsfw ? '仍判定为不适宜' : '检测通过，已恢复预览';
+      if (!d.nsfw) {
+        const box = btn.closest('.nsfw-box');
+        if (box) {
+          const viewUrl = ref.toLowerCase().endsWith('.wxgf') ? `/media-view/${ref}` : `/media/${ref}`;
+          box.classList.remove('nsfw-box');
+          box.innerHTML = `<img src="${viewUrl}" class="msg-media-img" alt="图片" loading="lazy">`;
+        }
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '重新检测';
+    }
   }
 
   // ===== 供应商体检 =====
