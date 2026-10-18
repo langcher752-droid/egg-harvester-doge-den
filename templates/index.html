@@ -6651,7 +6651,10 @@
   function decorateContextEntities(root = document) {
     const entities = [...(root.matches?.(contextEntitySelector) ? [root] : []), ...root.querySelectorAll(contextEntitySelector)];
     entities.forEach(entity => {
-      if (entity.querySelector(':scope > .entity-overflow')) return;
+       // 侧栏导航本身已经是单击入口；保留右键菜单，但不要再显示一个
+       // 占空间的“…”按钮，避免每一行出现重复操作 affordance。
+       if (entity.matches('.nav-item')) return;
+       if (entity.querySelector(':scope > .entity-overflow')) return;
       if (!entity.hasAttribute('tabindex')) entity.tabIndex = 0;
       const button = document.createElement('button');
       button.type = 'button';
