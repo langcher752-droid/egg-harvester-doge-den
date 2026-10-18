@@ -166,6 +166,15 @@ WECHAT_ATTACH_DIR=/path/to/xwechat_files/.../msg/attach
 
 各模块都能单独跑（例如 `python gicp.py`），不依赖网关即可入库；提取到的 key 仍会走连通性验证。
 
+### 媒体预览与内容安全（NSFW）
+
+- 预览图：`GET /media-thumb?ref=<媒体路径|file:<id>>`，图片缩放 / 视频抽首帧，落地 `static/thumbs/`。
+- 内容检测：`nsfw.py` 默认走 **ONNX 视觉模型**（ViT-base NSFW，`models/nsfw_vit_int8.onnx`，CPU 约 1.5s/张），两级拦截 —— `p≥0.70` 明确不适宜、`p≥0.40 且中心肤色≥22%` 疑似擦边/暴露；再加纯肤色兜底（`p≥0.25 且 中心≥60% 且 整体≥55%`）；模型缺失时自动退回启发式（关键词 + 肤色 + 表情包跳过）。
+- 依赖：`numpy` + `onnxruntime` 装在项目内 `vendor/`（见 `requirements-ml.txt`），不改动 App 自带 Python；`vendor/`、`models/*.onnx` 不入库。
+- 命中后群文件不下载、不预览并标红，聊天图片只隐藏预览（归档照旧，保留撤回保命）。
+- 接口：`POST /files/inspect/{id}`（单个群文件）、`POST /media-scan` + `GET /media-scan/status`（媒体库批量体检）、`GET /media-nsfw`。
+- 新列：`raw_messages.nsfw / nsfw_score / nsfw_reason / thumb_ref`。
+
 ### 鸡蛋站站点库（/stations）
 
 侧栏「鸡蛋站」不再是一个外链，而是一个可维护的站点库（`stations.py` + `stations` 表）：

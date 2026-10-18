@@ -171,3 +171,66 @@
 | `POST /providers/test` | 38 个 → 35 ok / 3 bad（均为真实不可用） |
 | `check_system.py` | **36/36**（新增导入勾选、列表排版、徽标三项） |
 | `test_e2e.py` | 12/12 |
+
+## 补记三：群文件预览图 + 免费 NSFW 检测（用户 m01454）
+
+**需求**：文件条目要出预览图；图片/视频用免费方式判断是否不正经内容，命中就标注警告、不下载、不预览。
+
+**实现**
+
+| 文件 | 改动 |
+|---|---|
+| `nsfw.py`（新增） | 关键词预筛 + 肤色占比启发式 + 表情包跳过 + 视频首帧（ffmpeg），`DEFAULT_THRESHOLD=0.34` |
+| `config.py` | `FFMPEG_BIN/FFPROBE_BIN` 多路径探测（launchd PATH 不含 `/opt/homebrew/bin`） |
+| `store.py` | 新列 `nsfw/nsfw_score/nsfw_reason/thumb_ref`，`set_msg_nsfw/set_media_nsfw/scan_targets/nsfw_stats` |
+| `app.py` | `GET /media-thumb`、`GET /media-nsfw`、`POST /media-scan`(+status)、`POST /files/inspect/{id}`；`/files/list` 扩充；下载接口命中即拦截 |
+| `templates/index.html` | 文件卡缩略图 + 检测占位 + 警告、`autoInspectFiles`、`scanMediaLibrary`、`mediaHTML` 拦截框（仍要查看/重新检测） |
+
+**坑**
+
+- `/media/*` 被 `StaticFiles` 挂载占用，新增路由必须换前缀，否则直接 404。
+- `file:<id>` 这类合成 ref 不能当媒体路径解析，`/media-thumb` 需单独走 `static/thumbs` 缓存。
+- 肤色 RGB 规则必须排除米色 UI/浅色背景，否则误报成灾（实测 315 → 57 → 15）。
+
+**验证**
+
+| 项 | 结果 |
+|---|---|
+| `GET /media-thumb?ref=file:13217` | 200，25KB 首帧 |
+| `GET /media-nsfw` 写真样本 | nsfw=true，score 0.895 |
+| 全量重扫 1346 个媒体 | 命中 15、干净 1335、未检 0 |
+| 群文件卡片预览 | 快照 `/tmp/nf6.png`：视频首帧、下载/忽略/上下文/AI总结/重新检测 |
+| 拦截框渲染 | `mediaHTML({nsfw:1})` 输出 `.nsfw-box`（含原因与两个按钮） |
+| `check_system.py` | **44/44** |
+| `test_e2e.py` | 12/12 |
+
+## 补记四：NSFW 换成视觉模型 + 「擦边也拦」口径（用户 m01970 / m01986）
+
+**需求**：不要只拦明确裸体，擦边、稍微露一点也要警告拦截。
+
+**选型**（对比用户给的三个方向）
+
+| 方案 | 结论 |
+|---|---|
+| `yahoo/open_nsfw` | Caffe 权重，需要 caffe/cv2 运行环境，Mac ARM 上装起来重 |
+| `infinitered/nsfwjs` | TensorFlow.js，只能在浏览器/Node 跑，后端守卫（下载拦截）用不上 |
+| `rockyzhengwu/nsfw` | open_nsfw 的 Python 包装，同样依赖 caffe |
+| **采用**：`AdamCodd/vit-base-nsfw-detector` 的 ONNX int8 | ViT-base 二分类（sfw/nsfw），Apache-2.0，84MB，`onnxruntime` CPU 推理约 1.5s/张，可直接在 FastAPI 线程里跑 |
+
+**实现**
+
+- `nsfw_model.py`：延迟加载 ONNX 会话、384×384 + mean/std 0.5 预处理、softmax 输出概率；模型缺失自动降级。
+- `vendor/`：`numpy` + `onnxruntime` 装到项目内（不改 App 自带 Python），`app.py` 启动时把 `vendor/` 插进 `sys.path`；`.gitignore` 忽略 `vendor/` 与 `models/*.onnx`。
+- `nsfw.py`：模型分两档 —— `p≥0.70` 明确不适宜、`p≥0.40 且中心肤色≥22%` 疑似擦边；再加纯肤色兜底 `p≥0.25 且 中心≥60% 且 整体≥55%`。全部可用环境变量覆盖。
+- UI：拦截框按 `擦边/暴露` 与 `不适宜` 两种标题；群文件卡警告文案同样区分。
+
+**调参依据**（1059 张有分数的样本）
+
+| 阈值 | 命中数 | 观察 |
+|---|---|---|
+| `p≥0.70` | 11（重扫后） | 基本全是写真/内衣，1-2 张卡通/文档误报 |
+| `p≥0.40` 无肤色门槛 | 28 | 大量聊天截图/代码截图误报（肤色≈0） |
+| `p≥0.40 且 中心肤色≥22%` | 3（另 11 明确） | 截图误报被挡住，擦边写真保留 |
+| 纯肤色（无模型门槛） | 61+ | 卡通/海报误报明显，必须叠加模型分 |
+
+**验证**：全量重扫 1114 个媒体；`GET /media-nsfw` 返回 `tier/model/probs`；`check_system.py` **47/47**。

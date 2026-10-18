@@ -27,8 +27,11 @@ START4 = b"\x00\x00\x00\x01"
 START3 = b"\x00\x00\x01"
 
 # launchd 守护进程环境下 PATH 可能极简，允许通过环境变量覆盖并优先使用 PATH。
-FFMPEG_BIN = os.getenv("FFMPEG_BIN") or shutil.which("ffmpeg") or "ffmpeg"
-FFPROBE_BIN = os.getenv("FFPROBE_BIN") or shutil.which("ffprobe") or "ffprobe"
+try:  # 统一走 config（launchd 下 PATH 不含 /opt/homebrew/bin）
+    from config import FFMPEG_BIN, FFPROBE_BIN
+except Exception:
+    FFMPEG_BIN = os.getenv("FFMPEG_BIN") or shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+    FFPROBE_BIN = os.getenv("FFPROBE_BIN") or shutil.which("ffprobe") or "/opt/homebrew/bin/ffprobe"
 
 NAL_VPS = 32
 NAL_SPS = 33

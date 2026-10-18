@@ -78,6 +78,10 @@ _MIGRATIONS = [
     ("raw_messages", "file_status", "TEXT"),
     ("raw_messages", "read", "INTEGER DEFAULT 0"),
     ("raw_messages", "extracted", "INTEGER DEFAULT 0"),
+    ("raw_messages", "nsfw", "INTEGER"),
+    ("raw_messages", "nsfw_score", "REAL"),
+    ("raw_messages", "nsfw_reason", "TEXT"),
+    ("raw_messages", "thumb_ref", "TEXT"),
 ]
 
 
@@ -380,6 +384,87 @@ def file_by_id(rid):
     r = c.execute("SELECT * FROM raw_messages WHERE id=?", (int(rid),)).fetchone()
     c.close()
     return dict(r) if r else None
+
+
+def set_msg_nsfw(platform, chat_id, msg_key, nsfw, score=0.0, reason="", thumb_ref=None):
+    """记录某条消息媒体内容的不适宜检测结果（nsfw: 1 命中 / 0 正常 / -1 无法检测 / None 未检测）。"""
+    c = _conn()
+    fields = ["nsfw=?", "nsfw_score=?", "nsfw_reason=?", "last_seen=?"]
+    if nsfw is None:
+        value = None
+    elif int(nsfw) == -1:
+        value = -1
+    else:
+        value = 1 if nsfw else 0
+    args = [value, float(score or 0), reason or "", _now()]
+    if thumb_ref is not None:
+        fields.append("thumb_ref=?")
+        args.append(thumb_ref)
+    args += [platform, str(chat_id), str(msg_key)]
+    c.execute(f"UPDATE raw_messages SET {', '.join(fields)} WHERE platform=? AND chat_id=? AND msg_key=?", args)
+    c.commit()
+    c.close()
+
+
+def set_media_nsfw(media_ref, nsfw, score=0.0, reason="", thumb_ref=None):
+    """按 media_ref 回写检测结果（一条媒体可能被多条消息引用，全部更新）。"""
+    if not media_ref:
+        return 0
+    c = _conn()
+    fields = ["nsfw=?", "nsfw_score=?", "nsfw_reason=?", "last_seen=?"]
+    args = [1 if nsfw else 0, float(score or 0), reason or "", _now()]
+    if thumb_ref is not None:
+        fields.append("thumb_ref=?")
+        args.append(thumb_ref)
+    args.append(str(media_ref))
+    cur = c.execute(f"UPDATE raw_messages SET {', '.join(fields)} WHERE media_ref=?", args)
+    n = cur.rowcount
+    c.commit()
+    c.close()
+    return n
+
+
+def media_row_by_ref(media_ref):
+    """按 media_ref 取一条代表行（用于媒体检测结果缓存）。"""
+    c = _conn()
+    r = c.execute(
+        "SELECT * FROM raw_messages WHERE media_ref=? ORDER BY id DESC LIMIT 1", (str(media_ref),)
+    ).fetchone()
+    c.close()
+    return dict(r) if r else None
+
+
+def scan_targets(limit=200, force=False, before_id=None):
+    """待检测的媒体消息：有 media_ref；force=True 时连已检测过的也重扫。
+    before_id 用于分批倒序翻页（只取 id < before_id 的记录）。"""
+    c = _conn()
+    where = "media_ref IS NOT NULL AND media_ref != ''"
+    args = []
+    if not force:
+        where += " AND nsfw IS NULL"
+    if before_id:
+        where += " AND id < ?"
+        args.append(int(before_id))
+    args.append(int(limit))
+    rows = c.execute(
+        f"SELECT * FROM raw_messages WHERE {where} ORDER BY id DESC LIMIT ?",
+        args,
+    ).fetchall()
+    c.close()
+    return [dict(r) for r in rows]
+
+
+def nsfw_stats():
+    c = _conn()
+    r = c.execute(
+        """SELECT
+             SUM(CASE WHEN nsfw=1 THEN 1 ELSE 0 END) flagged,
+             SUM(CASE WHEN nsfw=0 THEN 1 ELSE 0 END) clean,
+             SUM(CASE WHEN nsfw IS NULL AND media_ref IS NOT NULL AND media_ref != '' THEN 1 ELSE 0 END) unchecked
+           FROM raw_messages"""
+    ).fetchone()
+    c.close()
+    return {"flagged": r[0] or 0, "clean": r[1] or 0, "unchecked": r[2] or 0}
 
 
 def append_content(platform, chat_id, msg_key, extra):

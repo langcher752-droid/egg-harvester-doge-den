@@ -28,6 +28,16 @@ def httpx_kwargs():
     """httpx 0.28+ 移除了 proxies 参数；所有 httpx 调用统一走这里。"""
     return {"proxy": HTTP_PROXY} if HTTP_PROXY else {}
 
+# ---------- 外部命令（launchd 下 PATH 极简，需显式兜底） ----------
+def _find_bin(name, fallbacks):
+    import shutil
+    return os.getenv(name.upper() + "_BIN") or shutil.which(name) or next(
+        (p for p in fallbacks if os.path.exists(p)), name)
+
+
+FFMPEG_BIN = _find_bin("ffmpeg", ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"])
+FFPROBE_BIN = _find_bin("ffprobe", ["/opt/homebrew/bin/ffprobe", "/usr/local/bin/ffprobe", "/usr/bin/ffprobe"])
+
 # ---------- 媒体落地 ----------
 MEDIA_DIR = os.getenv("MEDIA_DIR") or os.path.join(_HERE, "media")
 

@@ -1,0 +1,7 @@
+# NSFW 视觉模型引擎（可选）：不装也能跑，会自动退回启发式检测
+# 安装到项目内 vendor/ 目录，避免污染 App 自带的 Python：
+#   /Users/rancho/Applications/GroupIntel.app/Contents/MacOS/python3.13 -m pip install --target vendor numpy onnxruntime
+# 模型文件（约 84MB）放 models/nsfw_vit_int8.onnx，来源：
+#   https://huggingface.co/AdamCodd/vit-base-nsfw-detector/tree/main/onnx
+numpy>=1.26
+onnxruntime>=1.17

@@ -31,6 +31,31 @@ def check_file(path):
     """检查文件是否存在"""
     return os.path.exists(os.path.expanduser(path))
 
+def check_endpoint(path):
+    """后端路由是否存在（404/连不上才算失败，405/422 说明路由在）"""
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+             f"http://127.0.0.1:8890{path}"],
+            capture_output=True, text=True, timeout=8)
+        code = result.stdout.strip()
+        return code not in ("", "000", "404")
+    except Exception:
+        return False
+
+def check_db_column(table_name, column):
+    """检查数据库表是否有某列"""
+    import sqlite3
+    db_path = os.getenv("DB_PATH", str(ROOT / "eggs.db"))
+    if not os.path.exists(db_path):
+        return False
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table_name})")]
+            return column in cols
+    except sqlite3.Error:
+        return False
+
 def check_db_table(table_name):
     """检查数据库表"""
     import sqlite3
@@ -64,6 +89,12 @@ def main():
             ("买鸡鸡go采集", lambda: check_file("mjjgo.py")),
             ("羊毛站采集", lambda: check_file("gicp.py")),
             ("鸡蛋站站点库", lambda: check_file("stations.py")),
+            ("NSFW 检测模块", lambda: check_file("nsfw.py")),
+            ("NSFW 模型引擎", lambda: check_file("nsfw_model.py")),
+            ("NSFW 模型权重", lambda: check_file("models/nsfw_vit_int8.onnx")),
+            ("NSFW 运行时依赖", lambda: check_file("vendor/onnxruntime")),
+            ("媒体缩略图接口", lambda: check_endpoint("/media-thumb")),
+            ("群文件检测接口", lambda: check_endpoint("/files/inspect/1")),
             ("通知App源码", lambda: check_file(ROOT / "app/src/Notifications.swift")),
         ],
         "数据库表": [
@@ -77,6 +108,8 @@ def main():
             ("settings", lambda: check_db_table("settings")),
             ("file_summaries", lambda: check_db_table("file_summaries")),
             ("stations", lambda: check_db_table("stations")),
+            ("raw_messages.nsfw", lambda: check_db_column("raw_messages", "nsfw")),
+            ("raw_messages.thumb_ref", lambda: check_db_column("raw_messages", "thumb_ref")),
         ],
         "前端功能": [
             ("Markdown渲染库", lambda: "marked" in _page()),
@@ -92,6 +125,9 @@ def main():
             ("导入候选可勾选", lambda: "stationImportPreview" in _page() and "import_selected" in _page()),
             ("站点列表排版", lambda: "stationRowHtml" in _page() and "setStationsLayout" in _page()),
             ("侧栏徽标补全", lambda: "badge-providers" in _page() and "badge-stations" in _page()),
+            ("群文件预览图", lambda: "file-thumb" in _page() and "autoInspectFiles" in _page()),
+            ("NSFW 拦截提示", lambda: "nsfw-box" in _page() and "nsfwReveal" in _page()),
+            ("媒体批量扫描", lambda: "scanMediaLibrary" in _page()),
         ],
     }
     
