@@ -598,8 +598,23 @@ async def doge_page():
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
+@app.post("/harvest/decode")
+async def decode_harvest(text: str = Form("")):
+    """只解析/解码候选，不探测、不联网，供手工收割的预览步骤使用。"""
+    from extract import extract_from_text
+    candidates = await asyncio.to_thread(extract_from_text, text)
+    return {"count": len(candidates), "candidates": [
+        {"base_url": c.get("base_url") or "", "api_key_mask": ((c.get("api_key") or "")[:4] + "****"),
+         "provider_hint": "custom", "model_hint": c.get("models") or [],
+         "metadata": {k: c[k] for k in ("expires", "balance", "observed_at", "contributor") if c.get(k)},
+         "note": c.get("note") or "", "reported_status": c.get("reported_status") or "unreported",
+         "decode_status": "decoded" if c.get("api_key") else "not_decoded"}
+        for c in candidates
+    ]}
+
+
 @app.post("/harvest")
-async def harvest(text: str = Form(""), image: UploadFile = File(None)):
+async def harvest(text: str = Form(""), image: UploadFile = File(None), source: str = Form("web")):
     results = []
     if image and image.filename:
         data = await image.read()
@@ -610,21 +625,25 @@ async def harvest(text: str = Form(""), image: UploadFile = File(None)):
 
         for c in candidates:
             res = await asyncio.to_thread(probe, c.get("base_url"), c.get("api_key"))
+            source_reported_status = c.get("reported_status", "unreported")
+            note = c.get("note", "")
             if res["ok"]:
-                h = store_valid_key("web", c.get("base_url"), c["api_key"],
-                                    res["provider"], res["models"], res["latency_ms"])
+                h = store_valid_key(source, c.get("base_url"), c["api_key"],
+                                    res["provider"], res["models"], res["latency_ms"], note=note)
                 results.append({"base_url": c.get("base_url"), "provider": res["provider"],
                                 "models": res["models"], "latency_ms": res.get("latency_ms"),
-                                "status": "valid", "hash": h,
-                                "curl": res.get("curl"), "trace": res.get("trace")})
+                                "status": "valid", "reported_status": source_reported_status,
+                                "hash": h, "curl": res.get("curl"), "trace": res.get("trace")})
             else:
                 ak = c.get("api_key") or ""
                 results.append({"base_url": c.get("base_url"),
                                 "api_key_mask": (ak[:4] + "****") if ak else "****",
                                 "latency_ms": res.get("latency_ms"), "status": "invalid",
+                                "reported_status": source_reported_status,
+                                "error": res.get("error"), "note": note,
                                 "curl": res.get("curl"), "trace": res.get("trace")})
     if text and text.strip():
-        results = await asyncio.to_thread(process_text, text, "web")
+        results = await asyncio.to_thread(process_text, text, source or "web")
         # 视频 / 公众号文章 / 网盘分享 等链接不可能提供 API，统计后提示用户，
         # 避免「明明粘贴了带 key 的消息却显示没扒到」的困惑。
         from extract import BASEURL_RE

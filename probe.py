@@ -14,7 +14,7 @@ def _mask(key: str) -> str:
 
 def _curl(url: str, key: str, method: str = "GET", body: dict = None) -> str:
     """把真实请求还原成可以直接粘贴到终端的 curl（key 脱敏）"""
-    parts = [f"curl -sS -m {int(HTTP_TIMEOUT)}", f"-X {method}", "-H 'Authorization: Bearer {_mask(key)}'"]
+    parts = [f"curl -sS -m {int(HTTP_TIMEOUT)}", f"-X {method}", f"-H 'Authorization: Bearer {_mask(key)}'"]
     if body is not None:
         parts.append("-H 'Content-Type: application/json'")
         parts.append("-d '" + json.dumps(body, ensure_ascii=False) + "'")
@@ -24,6 +24,14 @@ def _curl(url: str, key: str, method: str = "GET", body: dict = None) -> str:
 
 def _trace(step: str, **kw) -> dict:
     return {"step": step, **kw}
+
+
+def _redact(text: str, key: str) -> str:
+    value = str(text or "")
+    if key:
+        value = value.replace(key, "[REDACTED]")
+    return re.sub(r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?|x-api-key\s*[:=]\s*)[^\s,;\"']+",
+                  r"\1[REDACTED]", value)
 
 
 def guess_provider(base_url):
@@ -128,25 +136,35 @@ def probe(base_url: str, api_key: str):
     if not api_key:
         return {"ok": False, "provider": guess_provider(base_url), "models": [],
                 "latency_ms": 0, "error": "缺少 api_key"}
+    base_url = (base_url or "").strip().rstrip("/")
+    if not base_url:
+        return {"ok": False, "provider": "unknown", "models": [],
+                "latency_ms": 0, "error": "请填写自定义 Base URL；不会默认连接 OpenAI 官方 endpoint"}
     if not is_plausible_api_url(base_url):
         return {"ok": False, "provider": guess_provider(base_url), "models": [],
                 "latency_ms": 0, "error": "接口地址不像 API（疑似视频/文章/分享链接）"}
-
-    base_url = (base_url or "https://api.openai.com/v1").strip().rstrip("/")
-    models_url = base_url if base_url.endswith("/v1") else base_url + "/v1"
+    endpoint_suffix = "/chat/completions"
+    if base_url.lower().endswith(endpoint_suffix):
+        api_root = base_url[:-len(endpoint_suffix)].rstrip("/")
+    else:
+        api_root = base_url
+    if not re.search(r"/v\d+[a-z0-9]*$", api_root, re.I):
+        api_root += "/v1"
+    models_url = api_root + "/models"
+    chat_url = base_url if base_url.lower().endswith(endpoint_suffix) else api_root + endpoint_suffix
     headers = {"Authorization": f"Bearer {api_key}"}
     start = time.time()
     trace = []
     last_error = ""
-    curl_models = _curl(f"{models_url}/models", api_key)
+    curl_models = _curl(models_url, api_key)
 
     try:
         r = httpx.get(
-            f"{models_url}/models", headers=headers, timeout=HTTP_TIMEOUT, **httpx_kwargs()
+            models_url, headers=headers, timeout=HTTP_TIMEOUT, **httpx_kwargs()
         )
         trace.append(_trace("GET /v1/models", status=r.status_code,
                             ms=int((time.time() - start) * 1000),
-                            body=(r.text or "")[:300]))
+                            body=_redact((r.text or "")[:300], api_key)))
         if r.status_code == 200:
             if _is_json_response(r):
                 models = _models_from(r)
@@ -166,14 +184,14 @@ def probe(base_url: str, api_key: str):
         else:
             last_error = f"HTTP {r.status_code}"
     except Exception as e:
-        last_error = str(e)[:200]
+        last_error = _redact(str(e), api_key)[:200]
         trace.append(_trace("GET /v1/models", error=last_error))
 
     body = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
-    curl_chat = _curl(f"{models_url}/chat/completions", api_key, "POST", body)
+    curl_chat = _curl(chat_url, api_key, "POST", body)
     try:
         r = httpx.post(
-            f"{models_url}/chat/completions",
+            chat_url,
             headers={**headers, "Content-Type": "application/json"},
             json=body,
             timeout=HTTP_TIMEOUT,
@@ -181,7 +199,7 @@ def probe(base_url: str, api_key: str):
         )
         trace.append(_trace("POST /v1/chat/completions", status=r.status_code,
                             ms=int((time.time() - start) * 1000),
-                            body=(r.text or "")[:300]))
+                            body=_redact((r.text or "")[:300], api_key)))
         if r.status_code == 200 and _is_json_response(r):
             obj = r.json()
             if isinstance(obj, dict) and ("choices" in obj or "error" not in obj):
@@ -199,7 +217,7 @@ def probe(base_url: str, api_key: str):
         else:
             last_error = f"HTTP {r.status_code}"
     except Exception as e:
-        last_error = str(e)[:200]
+        last_error = _redact(str(e), api_key)[:200]
         trace.append(_trace("POST /v1/chat/completions", error=last_error))
 
     return {

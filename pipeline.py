@@ -24,12 +24,20 @@ def process_text(text: str, source: str = "text"):
                     "api_key_mask": (ak[:4] + "****") if ak else "****",
                     "latency_ms": 0,
                     "status": "invalid",
+                    "reported_status": c.get("reported_status", "unreported"),
+                    "note": c.get("note", ""),
                     "error": "疑似视频/文章/分享链接，不是 API 接口",
                 }
             )
             continue
 
         res = probe(base_url, c.get("api_key"))
+        common = {
+            "reported_status": c.get("reported_status", "unreported"),
+            "note": c.get("note", ""),
+            "metadata": {k: c[k] for k in ("expires", "balance", "observed_at", "contributor") if c.get(k)},
+            "model_hint": c.get("models") or [],
+        }
         if res["ok"]:
             h = store_valid_key(
                 source, base_url, c["api_key"], res["provider"], res["models"], res["latency_ms"]
@@ -44,6 +52,7 @@ def process_text(text: str, source: str = "text"):
                     "hash": h,
                     "curl": res.get("curl"),
                     "trace": res.get("trace"),
+                    **common,
                 }
             )
         else:
@@ -57,6 +66,7 @@ def process_text(text: str, source: str = "text"):
                     "error": res.get("error"),
                     "curl": res.get("curl"),
                     "trace": res.get("trace"),
+                    **common,
                 }
             )
     return results

@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var servicesWindow: ServicesWindowController?
     private var statusItem: NSStatusItem!
     private var statusMenu = NSMenu()
+    private let launchedInBackground = ProcessInfo.processInfo.environment["GROUPINTEL_BACKGROUND"] == "1"
 
     // MARK: - 生命周期
 
@@ -22,7 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         buildMenu()
 
         mainWindow = MainWindowController()
-        mainWindow.show()
+        if !launchedInBackground {
+            mainWindow.show()
+        }
 
         ServiceSupervisor.shared.onChange = { [weak self] in
             self?.refreshStatusItem()
@@ -102,8 +105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
                 guard let self = self else { return }
                 if !ServiceSupervisor.shared.qqOnline {
-                    self.showAccount()
-                    print("[login] QQ 未登录，已自动打开账号与登录窗口（扫码后会自动记录账号，今后自动登录）")
+                    if !self.launchedInBackground { self.showAccount() }
+                    print("[login] QQ 未登录，已记录扫码提示（后台启动不抢前台）")
                 }
             }
         }
@@ -139,10 +142,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appItem.submenu = appMenu
         appMenu.addItem(withTitle: "关于 鸡蛋收割机", action: #selector(showAbout), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "账号与登录…", action: #selector(showAccount), keyEquivalent: ",")
-        appMenu.addItem(withTitle: "服务状态…", action: #selector(showServices), keyEquivalent: "s")
+        let preferences = NSMenuItem(title: "系统设置…", action: #selector(gotoPanel(_:)), keyEquivalent: ",")
+        preferences.representedObject = "settings"
+        preferences.target = self
+        appMenu.addItem(preferences)
+        appMenu.addItem(withTitle: "账号与登录…", action: #selector(showAccount), keyEquivalent: "")
+        appMenu.addItem(withTitle: "服务状态…", action: #selector(showServices), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "隐藏 鸡蛋收割机", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthers = appMenu.addItem(withTitle: "隐藏其他应用", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: "显示全部", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "退出 鸡蛋收割机", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
@@ -170,12 +180,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenu.addItem(withTitle: "重新加载", action: #selector(reloadPage), keyEquivalent: "r")
         viewMenu.addItem(withTitle: "强制重新加载", action: #selector(hardReloadPage), keyEquivalent: "R")
         viewMenu.addItem(.separator())
-        for (title, hash) in [("鸡蛋库", ""), ("情报流", "stream"), ("简报", "intel"), ("群文件", "files"), ("群管理", "groups"), ("供应商体检", "providers"), ("Doge 动画", "doge"), ("系统设置", "settings")] {
+        for (title, hash) in [("鸡蛋库", "keys"), ("情报流", "stream"), ("简报", "intel"), ("鸡蛋站", "stations"), ("群文件", "files"), ("群管理", "groups"), ("供应商体检", "providers"), ("Doge 动画", "doge"), ("系统设置", "settings")] {
             let it = NSMenuItem(title: title, action: #selector(gotoPanel(_:)), keyEquivalent: "")
             it.representedObject = hash
+            it.target = self
             viewMenu.addItem(it)
         }
         viewMenu.addItem(.separator())
+        viewMenu.addItem(withTitle: "在情报流搜索…", action: #selector(focusStreamSearch), keyEquivalent: "")
+        viewMenu.addItem(withTitle: "AI 问答…", action: #selector(openStreamAI), keyEquivalent: "")
         viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "打开数据目录", action: #selector(openDataDir), keyEquivalent: "")
         viewMenu.addItem(withTitle: "打开日志目录", action: #selector(openLogsDir), keyEquivalent: "")
@@ -188,6 +201,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         svcItem.submenu = svcMenu
         svcMenu.addItem(withTitle: "启动全部服务", action: #selector(startAllServices), keyEquivalent: "")
         svcMenu.addItem(withTitle: "重启全部服务", action: #selector(restartAllServices), keyEquivalent: "")
+        svcMenu.addItem(.separator())
+        svcMenu.addItem(withTitle: "手工收割…", action: #selector(openHarvest), keyEquivalent: "")
+        svcMenu.addItem(withTitle: "生成情报简报…", action: #selector(generateIntel), keyEquivalent: "")
+        svcMenu.addItem(withTitle: "操作中心…", action: #selector(openOperationCenter), keyEquivalent: "")
         svcMenu.addItem(.separator())
         svcMenu.addItem(withTitle: "服务状态…", action: #selector(showServices), keyEquivalent: "")
         svcMenu.addItem(withTitle: "QQ 扫码登录…", action: #selector(showAccount), keyEquivalent: "l")
@@ -232,6 +249,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
         menu.addItem(withTitle: "显示主窗口", action: #selector(showMain), keyEquivalent: "")
+        let streamShortcut = NSMenuItem(title: "情报流", action: #selector(gotoPanel(_:)), keyEquivalent: "")
+        streamShortcut.representedObject = "stream"
+        streamShortcut.target = self
+        menu.addItem(streamShortcut)
+        let stationsShortcut = NSMenuItem(title: "鸡蛋站", action: #selector(gotoPanel(_:)), keyEquivalent: "")
+        stationsShortcut.representedObject = "stations"
+        stationsShortcut.target = self
+        menu.addItem(stationsShortcut)
+        menu.addItem(withTitle: "AI 问答…", action: #selector(openStreamAI), keyEquivalent: "")
+        menu.addItem(withTitle: "手工收割…", action: #selector(openHarvest), keyEquivalent: "")
+        menu.addItem(withTitle: "生成情报简报…", action: #selector(generateIntel), keyEquivalent: "")
+        menu.addItem(withTitle: "操作中心…", action: #selector(openOperationCenter), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "服务状态…", action: #selector(showServices), keyEquivalent: "")
         menu.addItem(withTitle: "QQ 扫码登录…", action: #selector(showAccount), keyEquivalent: "")
         menu.addItem(withTitle: "重启全部服务", action: #selector(restartAllServices), keyEquivalent: "")
         menu.addItem(.separator())
@@ -264,6 +295,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let name = panel.isEmpty ? "keys" : panel
         mainWindow?.show()
         mainWindow?.evaluate("if (typeof switchView === 'function') { switchView('\(name)'); } else { location.hash = '\(name)'; }")
+    }
+
+    @objc private func focusStreamSearch() {
+        mainWindow?.show()
+        mainWindow?.evaluate("if (typeof switchView === 'function') switchView('stream'); document.getElementById('stream-search')?.focus();")
+    }
+
+    @objc private func openStreamAI() {
+        mainWindow?.show()
+        mainWindow?.evaluate("if (typeof switchView === 'function') switchView('stream'); if (typeof toggleStreamAI === 'function') toggleStreamAI(true); else document.getElementById('ai-question')?.focus();")
+    }
+
+    @objc private func openHarvest() {
+        mainWindow?.show()
+        mainWindow?.evaluate("if (typeof openHarvestDrawer === 'function') openHarvestDrawer();")
+    }
+
+    @objc private func generateIntel() {
+        mainWindow?.show()
+        mainWindow?.evaluate("if (typeof switchView === 'function') switchView('intel'); if (typeof generateAllIntel === 'function') generateAllIntel();")
+    }
+
+    @objc private func openOperationCenter() {
+        mainWindow?.show()
+        mainWindow?.evaluate("if (typeof openOperationDrawer === 'function') openOperationDrawer();")
     }
 
     @objc private func openDataDir() {
@@ -359,6 +415,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 <string>\(Bundle.main.bundlePath)</string>
             </array>
             <key>RunAtLoad</key><true/>
+            <key>EnvironmentVariables</key>
+            <dict><key>GROUPINTEL_BACKGROUND</key><string>1</string></dict>
             <key>KeepAlive</key><false/>
             <key>ProcessType</key><string>Interactive</string>
             <key>StandardOutPath</key><string>\(AppConfig.shared.logsDir.path)/app.out.log</string>

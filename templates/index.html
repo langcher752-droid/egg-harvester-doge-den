@@ -519,6 +519,16 @@
   .stream-main.single-chat .msg-platform,
   .stream-main.single-chat .msg-chat-name { display: none; }
   .stream-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .stream-ai-panel { flex: 0 0 auto; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--bg-surface-hover); }
+  .stream-ai-panel[hidden], .stream-main.ctx-mode .stream-ai-panel { display: none; }
+  .stream-ai-heading, .stream-ai-form { display: flex; align-items: center; gap: 10px; }
+  .stream-ai-heading { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .stream-ai-heading strong { color: var(--text-primary); font-size: 13px; }
+  .stream-ai-heading button { margin-left: auto; }
+  .stream-ai-form input { flex: 1; min-width: 0; }
+  .stream-ai-hint { color: var(--text-muted); font-size: 11px; margin-top: 6px; }
+  #stream-ai-result:not(:empty) { max-height: min(34vh, 300px); overflow-y: auto; margin-top: 10px; }
+  #stream-ai-result .ctx-ai-card { margin-bottom: 0; }
   .mini-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
   .stream-toolbar {
     padding: 10px 18px; flex: 0 0 auto; background: var(--bg-surface);
@@ -712,6 +722,9 @@
     line-height: 1.6;
     color: var(--text-primary);
   }
+  .markdown-content > :first-child { margin-top: 0; }
+  .markdown-content > :last-child { margin-bottom: 0; }
+  .markdown-content p { margin: 8px 0; }
   .markdown-content h1, .markdown-content h2, .markdown-content h3 {
     color: var(--text-primary);
     margin-top: 16px;
@@ -740,6 +753,11 @@
     background: none;
     padding: 0;
   }
+  .markdown-content blockquote { margin: 10px 0; padding: 8px 12px; border-left: 3px solid var(--accent-blue); color: var(--text-secondary); background: var(--bg-surface-hover); border-radius: 0 6px 6px 0; }
+  .markdown-content table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+  .markdown-content th, .markdown-content td { padding: 6px 8px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+  .markdown-content th { background: var(--bg-surface-hover); font-weight: 600; }
+  .markdown-content hr { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
   .markdown-content ul, .markdown-content ol {
     padding-left: 24px;
     margin: 8px 0;
@@ -2132,7 +2150,7 @@
               <div class="stream-sub" id="stream-sub">实时监听中 · 自动刷新</div>
             </div>
             <div class="stream-actions">
-              <div class="ai-entry"><input class="search-input" id="ai-question" placeholder="问当前会话…（可选）" onkeydown="if(event.key==='Enter') askStreamAI()"><button class="btn-ghost" id="ai-question-btn" onclick="askStreamAI()"><i class="ico" style="--ico:url(/static/icons/ai@2x.png)"></i> AI 问答</button></div>
+              <button class="btn-ghost" id="ai-question-btn" type="button" aria-expanded="false" aria-controls="stream-ai-panel" onclick="toggleStreamAI()"><i class="ico" style="--ico:url(/static/icons/ai@2x.png)"></i> 问 AI</button>
               <label class="mini-check"><input type="checkbox" id="stream-recalled-only" onchange="reloadStream()"> 仅看撤回</label>
               <label class="mini-check"><input type="checkbox" id="stream-hide-sticker" checked onchange="toggleStickerFilter(this.checked)"> 隐藏表情包</label>
               <button class="btn-ghost" onclick="markAllAsRead()"><i class="ico" style="--ico:url(/static/icons/check@2x.png)"></i> 全部已读</button>
@@ -2143,6 +2161,15 @@
               </select>
             </div>
           </div>
+          <section id="stream-ai-panel" class="stream-ai-panel" aria-label="会话 AI 问答" hidden>
+            <div class="stream-ai-heading"><strong>问当前会话</strong><span id="stream-ai-scope">选择一个会话后提问</span><button type="button" class="btn-ghost" onclick="toggleStreamAI(false)" aria-label="关闭 AI 问答">关闭</button></div>
+            <form id="stream-ai-form" class="stream-ai-form" onsubmit="event.preventDefault(); askStreamAI()">
+              <input class="search-input" id="ai-question" aria-label="向 AI 提问" placeholder="例如：这段对话有哪些结论？留空则总结当前会话" autocomplete="off">
+              <button class="btn-ghost" id="ai-send-btn" type="submit">发送</button>
+            </form>
+            <div class="stream-ai-hint">仅使用当前显示的消息回答；请核对 AI 结果。关闭面板不会清除回答。</div>
+            <div id="stream-ai-result" role="status" aria-live="polite"></div>
+          </section>
           <div class="stream-toolbar">
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input type="text" class="search-input" id="stream-search" placeholder="在当前会话里搜索消息或发言人…（回车）" onkeydown="if(event.key==='Enter') reloadStream()"><div class="source-filter" id="web-source-filter"><span class="source-filter-label">Web 来源</span><button class="chip active" data-web-source="" onclick="setWebSource('')">全部</button><button class="chip" data-web-source="welfare" onclick="setWebSource('welfare')">welfare</button><button class="chip" data-web-source="baipiao" onclick="setWebSource('baipiao')">baipiao</button><button class="chip" data-web-source="mjjgo" onclick="setWebSource('mjjgo')">mjjgo</button><button class="chip" data-web-source="gicp" onclick="setWebSource('gicp')">羊毛站</button></div></div>
           </div>
@@ -2475,10 +2502,14 @@
     </div>
     <div class="drawer-body">
       <div style="font-size:12px; color:var(--text-secondary);">
-        粘贴任何包含 base_url|key 的群消息，或直接拖拽截图。系统将立即 OCR 识别、正则提取、连通性测速并入库。
+        支持群消息日报、多组 Base URL / Base64 Key、常见 API Key 与自定义 endpoint；先预览识别结果，再进行连通性测试。
       </div>
-      <textarea class="drawer-textarea" id="harvest-text" placeholder="粘贴群消息到这里...&#10;支持自动提取 sk- 开头密钥或 base_url 键值对"></textarea>
-      
+      <textarea class="drawer-textarea" id="harvest-text" placeholder="粘贴群消息、日报或配置片段…&#10;支持 Base URL + Base64 Key、多组汇总和自定义 endpoint"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn-ghost" type="button" onclick="previewHarvestDecode()">预览解析/解码</button>
+        <button class="btn-ghost" type="button" onclick="document.getElementById('harvest-text').value=''">清空</button>
+      </div>
+      <div id="harvest-decode-preview" class="harvest-log" style="display:none;margin-top:10px;"></div>
       <div class="dropzone" id="harvest-dropzone" onclick="document.getElementById('harvest-file-input').click()">
         <input type="file" id="harvest-file-input" accept="image/*" style="display:none" onchange="handleFileSelect(event)">
         <div id="dropzone-text"><i class="ico" style="--ico:url(/static/icons/image@2x.png)"></i> 点击或拖拽截图到此处（支持剪贴板粘贴）</div>
@@ -3618,7 +3649,7 @@
 
   // 测速/探测日志抽屉：把真实请求还原成 curl 并展示响应
   function showProbeLog(baseUrl, apiKey, j) {
-    const curl = j.curl ? `<div class="h-curl">$ ${esc(j.curl)}</div>` : '';
+    const curl = j.curl ? `<div class="h-curl">$ ${esc(j.curl)}</div>` : '<div class="h-curl">未生成可复制诊断命令</div>';
     const trace = (j.trace || []).map(t => {
       const st = t.error ? `<span class="h-bad">${esc(t.error)}</span>` : `<b>${t.status}</b> · ${t.ms}ms`;
       const body = t.body ? `<span class="h-body">${esc(t.body)}</span>` : '';
@@ -3813,35 +3844,47 @@
     loadIntelSummaries();
   }
 
+  function toggleStreamAI(open) {
+    const panel = document.getElementById('stream-ai-panel');
+    const button = document.getElementById('ai-question-btn');
+    if (!panel || !button) return;
+    const show = typeof open === 'boolean' ? open : panel.hidden;
+    panel.hidden = !show;
+    button.setAttribute('aria-expanded', String(show));
+    if (show) {
+      document.getElementById('stream-ai-scope').textContent = currentChat.chat_id ? `仅参考「${currentChat.name || currentChat.chat_id}」当前可见消息` : '先从左侧选择一个会话';
+      document.getElementById('ai-question').focus();
+    } else button.focus();
+  }
+
+  let streamAIRequest = 0;
   async function askStreamAI() {
     const input = document.getElementById('ai-question');
-    const btn = document.getElementById('ai-question-btn');
-    const question = (input?.value || '').trim();
-    if (!currentChat.chat_id && !question) { toast('先选择会话，或输入一个问题'); return; }
+    const btn = document.getElementById('ai-send-btn');
+    const result = document.getElementById('stream-ai-result');
+    if (!currentChat.chat_id) { toast('请先从左侧选择一个会话'); return; }
+    const ids = [...document.querySelectorAll('#stream-list [data-msg-id]')].map(x => x.dataset.msgId).filter(Boolean).slice(-120);
+    if (!ids.length) { toast('当前会话没有可供 AI 阅读的消息'); return; }
+    const question = (input.value || '').trim();
+    const request = ++streamAIRequest;
     btn.disabled = true;
-    const old = btn.innerHTML; btn.innerHTML = `${DogeUI.face('read','sm')} 思考中…`;
-    const host = document.getElementById('stream-list');
-    const marker = document.createElement('div'); marker.className = 'ctx-ai-card'; marker.id = 'stream-ai-result';
-    marker.innerHTML = `<div class="ctx-ai-head">${DogeUI.face('read','sm')} AI 正在读取当前会话…</div><div class="doge-loading" style="padding:20px 0"><img src="${DogeUI.path('read')}" alt=""><div>正在整理上下文</div></div>`;
-    host.prepend(marker);
+    btn.textContent = '思考中…';
+    result.innerHTML = `<div class="ctx-ai-card"><div class="ctx-ai-head">${DogeUI.face('read','sm')} ${question ? '正在回答问题…' : '正在总结当前消息…'}</div></div>`;
     try {
-      const ids = [...document.querySelectorAll('#stream-list [data-msg-id]')].map(x => x.dataset.msgId).filter(Boolean).slice(-120);
       const fd = new FormData();
-      if (ids.length) fd.append('ids', ids.join(','));
-      else { fd.append('platform', currentChat.platform || ''); fd.append('chat_id', currentChat.chat_id || ''); }
+      fd.append('ids', ids.join(','));
       if (question) fd.append('question', question);
       const res = await fetch('/messages/ai_ask', { method:'POST', body: fd });
-      let data = await res.json();
-      if (!res.ok || !data.ok) {
-        // Existing backend contract: summarize the same real messages when Q&A is unavailable.
-        const fallback = new FormData(); ids.length ? fallback.append('ids', ids.join(',')) : fallback.append('chat_id', currentChat.chat_id || '');
-        const fr = await fetch('/messages/ai_summarize', { method:'POST', body:fallback }); data = await fr.json();
-        if (!fr.ok || !data.ok) throw new Error(data.error || 'AI 请求失败');
-        data.answer = data.summary; data.fallback = true;
-      }
-      marker.innerHTML = `<div class="ctx-ai-head">${DogeUI.face('saved','sm')} ${data.fallback ? 'AI 总结（问答接口不可用）' : 'AI 回答'}</div><div class="markdown-content">${renderMarkdown(data.answer || data.summary || '暂无回答')}</div>`;
-    } catch (e) { marker.innerHTML = `<div class="ctx-ai-head" style="color:var(--accent-red)">${DogeUI.face('invalid','sm')} AI 请求失败</div><div class="empty-sub">${esc(e.message)}。可稍后重试。</div>`; }
-    finally { btn.disabled = false; btn.innerHTML = old; if (input) input.value = ''; }
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'AI 请求失败');
+      if (request !== streamAIRequest) return;
+      result.innerHTML = `<div class="ctx-ai-card"><div class="ctx-ai-head">${DogeUI.face('saved','sm')} ${question ? 'AI 回答' : '会话总结'} · ${Number(data.message_count) || ids.length} 条消息</div><div class="markdown-content">${renderMarkdown(data.answer || '暂无回答')}</div></div>`;
+    } catch (e) {
+      if (request !== streamAIRequest) return;
+      result.innerHTML = `<div class="ctx-ai-card"><div class="ctx-ai-head" style="color:var(--accent-red)">${DogeUI.face('invalid','sm')} AI 请求失败</div><div class="empty-sub">${esc(e.message)}，请重试。</div></div>`;
+    } finally {
+      if (request === streamAIRequest) { btn.disabled = false; btn.textContent = '发送'; }
+    }
   }
 
   // 头像：QQ 走 /avatar 接口（后端下载+压到 96px），失败/非 QQ 回退首字母色块
@@ -3896,6 +3939,15 @@
   function selectChat(platform, chatId, name) {
     if (ctxView) { ctxView = null; const m = document.querySelector('.stream-main'); if (m) m.classList.remove('ctx-mode'); }
     currentChat = { platform, chat_id: chatId, name };
+    streamAIRequest++;
+    const aiResult = document.getElementById('stream-ai-result');
+    if (aiResult) aiResult.replaceChildren();
+    const aiInput = document.getElementById('ai-question');
+    if (aiInput) aiInput.value = '';
+    const aiScope = document.getElementById('stream-ai-scope');
+    if (aiScope) aiScope.textContent = chatId ? `仅参考「${name || chatId}」当前可见消息` : '先从左侧选择一个会话';
+    const aiSend = document.getElementById('ai-send-btn');
+    if (aiSend) { aiSend.disabled = false; aiSend.textContent = '发送'; }
     lastStreamSig = '';
     forceBottomOnce = true;
     document.getElementById('stream-title').textContent = name || '全部消息';
@@ -4006,7 +4058,10 @@
       // 图片是异步加载的：加载完会把内容撑高，如果贴着底部就继续贴底，避免假“有新消息”
       document.querySelectorAll('#stream-list img').forEach(img => {
         if (img.complete) return;
-        img.addEventListener('load', () => { scroll.scrollTop = scroll.scrollHeight; }, { once: true });
+        img.addEventListener('load', () => {
+          const liveDist = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight;
+          if (liveDist < 100) scroll.scrollTop = scroll.scrollHeight;
+        }, { once: true });
       });
     } else {
       scroll.scrollTop = prevTop;
@@ -5546,6 +5601,37 @@
     }
   }
 
+  async function previewHarvestDecode() {
+    const text = document.getElementById('harvest-text').value.trim();
+    const box = document.getElementById('harvest-decode-preview');
+    if (!text) { toast('先粘贴群汇总或配置文本'); return; }
+    box.style.display = 'block';
+    box.textContent = '正在本地解析并解码（不会发起网络请求）…';
+    try {
+      const fd = new FormData(); fd.append('text', text);
+      const response = await fetch('/harvest/decode', { method: 'POST', body: fd });
+      const data = await response.json();
+      const rows = data.candidates || [];
+      if (!rows.length) {
+        box.innerHTML = '<div class="h-trace">没有识别到可验证的 key 候选；请确认是否被打码、Base64 是否完整，以及群消息格式。</div>';
+        return;
+      }
+      box.innerHTML = `<div class="h-title">识别到 ${rows.length} 个候选（仅解码，尚未验证）</div>` + rows.map((r, i) =>
+        `<div class="h-item"><b>第 ${i + 1} 组</b> · ${esc(r.decode_status || 'decoded')}<br>` +
+        `Base URL：${esc(r.base_url || '未识别，请手动补充')}<br>` +
+        `Key：${esc(r.api_key_mask || '****')}<br>` +
+        `模型：${esc((r.model_hint || []).join(', ') || '未识别')}<br>` +
+        `${r.metadata?.expires ? `截止日期：${esc(r.metadata.expires)}<br>` : ''}` +
+        `${r.metadata?.balance ? `余额：${esc(r.metadata.balance)}<br>` : ''}` +
+        `${r.metadata?.observed_at ? `获取时间：${esc(r.metadata.observed_at)}<br>` : ''}` +
+        `${r.metadata?.contributor ? `贡献者：${esc(r.metadata.contributor)}<br>` : ''}` +
+        `${r.reported_status === 'possibly_expired' ? '<span class="h-bad">群内备注称可能失效（未验证）</span>' : '<span class="h-trace">群内未报告失效</span>'}` +
+        `${r.note ? `<div class="h-body">来源备注：${esc(r.note)}</div>` : ''}</div>`).join('');
+    } catch (error) {
+      box.textContent = '解析预览失败：' + (error.message || error);
+    }
+  }
+
   async function submitHarvest() {
     const btn = document.getElementById('btn-do-harvest');
     const out = document.getElementById('harvest-output');
@@ -5573,9 +5659,10 @@
       const blocks = (data.results || []).map(r => {
         const ok = r.status === 'valid';
         if (ok) validCount++;
+        const reported = r.reported_status === 'possibly_expired' ? '<span class="h-bad">群内报告：可能已失效（仅供参考）</span>' : '';
         const title = ok
-          ? `<span class="h-ok">可用入库</span> · ${esc(r.provider || '')} · ${r.latency_ms || '-'}ms · 模型 ${r.models ? r.models.length : 0} 个`
-          : `<span class="h-bad">不可用</span> · ${esc(r.base_url || '无地址')} · ${esc(r.api_key_mask || '****')} · ${r.latency_ms || '-'}ms`;
+          ? `<span class="h-ok">可用入库</span> · ${esc(r.provider || '')} · ${r.latency_ms || '-'}ms · 模型 ${r.models ? r.models.length : 0} 个 ${reported}`
+          : `<span class="h-bad">不可用</span> · ${esc(r.base_url || '无地址')} · ${esc(r.api_key_mask || '****')} · ${r.latency_ms || '-'}ms ${reported}`;
         const curl = r.curl ? `<div class="h-curl">$ ${esc(r.curl)}</div>` : '';
         const trace = (r.trace || []).map(t => {
           const st = t.error ? `<span class="h-bad">${esc(t.error)}</span>` : `<b>${t.status}</b> · ${t.ms}ms`;
@@ -5585,6 +5672,7 @@
         return `<div class="h-item">
             <div class="h-title">${title}</div>
             <div class="h-trace">${esc((r.base_url || '') + ' ' + (r.api_key_mask || ''))}</div>
+            ${r.note ? `<div class="h-body">来源备注：${esc(r.note)}</div>` : ''}
             ${curl}${trace}
           </div>`;
       });
@@ -5746,11 +5834,14 @@
   // ---------- QQ 登录状态与扫码弹窗 ----------
   let qqPollTimer = null;
   let qqModalOpen = false;
+  let qqStatusSeq = 0;
 
   async function refreshQQStatus() {
+    const seq = ++qqStatusSeq;
     try {
       const res = await fetch('/qq/status');
       const st = await res.json();
+      if (seq !== qqStatusSeq) return st;
       const btn = document.getElementById('qq-login-btn');
       const icon = document.getElementById('qq-login-icon');
       const text = document.getElementById('qq-login-text');
@@ -5771,11 +5862,16 @@
           DogeUI.burst('logindone', '登录成功！', 'Doge 已经上岗，开始盯群了', 2200);
           setTimeout(closeQQModal, 900);
         }
+      } else if (st.state === 'unknown' || st.reachable === false) {
+        // 保留当前在线视觉状态，不把瞬时网络错误伪装成未登录。
+        text.textContent = 'QQ 状态暂不可达' + (st.error ? ' · 稍后重试' : '');
+        btn.title = st.error || 'NapCat 暂时不可达';
       } else {
         btn.classList.remove('online');
         icon.classList.remove('on');
         icon.src = DogeUI.path('loginfail');
         text.textContent = 'QQ 未登录 · 点此扫码';
+        btn.title = '';
       }
       return st;
     } catch (e) {
@@ -6806,9 +6902,8 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollSafariUpdates(); });
   pollSafariUpdates();
 
-  // Shared contextual actions use the existing menu and existing action buttons.
-  // No inline JS is constructed from entity names, URLs, or keys.
-  const contextEntitySelector = '.nav-item[data-view], .station-card, .station-row, .key-card, .key-row, .file-card, .chat-row, .provider-row, .files-recent .fr-row, .directory-actions';
+  // Shared contextual actions: only offer actions unavailable in the visible panel.
+  const contextEntitySelector = '.station-card, .station-row, .key-row, .file-card, .chat-row, .provider-row, .directory-actions';
   let contextReturnFocus = null;
 
   function positionEntityMenu(ev, entity) {
@@ -6830,29 +6925,19 @@
   }
 
   function openEntityMenu(ev, entity) {
-    ev.preventDefault();
-    ev.stopPropagation();
     const provider = entity.querySelector('.provider-name[data-pid]');
     if (provider) {
+      ev.preventDefault();
+      ev.stopPropagation();
       providerContextMenu({ preventDefault() {}, clientX: ev.clientX || 0, clientY: ev.clientY || 0 }, provider.dataset.pid);
       positionEntityMenu(ev, entity);
       return;
     }
     const actions = [];
     const add = (label, run, disabled = false) => actions.push({ label, run, disabled });
-    if (entity.matches('.nav-item')) add('打开 ' + entity.querySelector('.nav-label').textContent.trim(), () => switchView(entity.dataset.view));
-    if (entity.matches('.chat-row')) add('打开会话', () => entity.click());
     if (entity.matches('.directory-actions')) add('复制目录路径', () => copyText(entity.querySelector('input')?.value || ''));
-    entity.querySelectorAll('button:not(.entity-overflow), a[href]').forEach(control => {
-      if (control.closest(contextEntitySelector) !== entity) return;
-      const label = control.textContent.trim() || control.title || control.getAttribute('aria-label');
-      if (label) add(label, () => control.click(), control.disabled);
-    });
     const station = stationsCache.find(item => String(item.id) === entity.dataset.stationId);
-    if (station) {
-      add('复制站点地址', () => copyText(station.url));
-      if (!entity.querySelector('[data-act="refresh"]')) add('重新抓取', () => refreshStation(station.id));
-    }
+    if (station) add('复制站点地址', () => copyText(station.url));
     const key = cachedKeys.find(item => String(item.id) === entity.dataset.keyId);
     if (key && entity.matches('.key-row')) {
       add('复制 Base URL', () => copyText(key.base_url));
@@ -6860,6 +6945,9 @@
       add('来源聊天', () => locateKeySource(key.id));
     }
     if (entity.matches('.chat-row, .file-card')) add('复制名称', () => copyText(entity.querySelector('.chat-name, .name')?.textContent || ''));
+    if (!actions.length) return;
+    ev.preventDefault();
+    ev.stopPropagation();
     const menu = document.getElementById('ctx-menu');
     menu.replaceChildren();
     for (const action of actions) {
@@ -6871,16 +6959,15 @@
       button.onclick = () => { closeContextMenu(); action.run(); };
       menu.appendChild(button);
     }
-    if (actions.length) positionEntityMenu(ev, entity);
+    positionEntityMenu(ev, entity);
   }
 
   function decorateContextEntities(root = document) {
     const entities = [...(root.matches?.(contextEntitySelector) ? [root] : []), ...root.querySelectorAll(contextEntitySelector)];
     entities.forEach(entity => {
-       // 侧栏导航本身已经是单击入口；保留右键菜单，但不要再显示一个
-       // 占空间的“…”按钮，避免每一行出现重复操作 affordance。
-       if (entity.matches('.nav-item')) return;
-       if (entity.querySelector(':scope > .entity-overflow')) return;
+      if (entity.matches('.provider-row') && !entity.querySelector('.provider-name[data-pid]')) return;
+      if (entity.matches('.key-row') && !entity.dataset.keyId) return;
+      if (entity.querySelector(':scope > .entity-overflow')) return;
       if (!entity.hasAttribute('tabindex')) entity.tabIndex = 0;
       const button = document.createElement('button');
       button.type = 'button';

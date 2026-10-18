@@ -1,27 +1,33 @@
-# 🥚 Egg Harvester · 鸡蛋收割机
+# 🥚 鸡蛋收割机（Egg Harvester）
 
-> **EN / 中文** — A local-first intelligence workbench for collecting, inspecting, and organizing messages, API eggs, and Doge memes.
-> 面向本地优先的群情报工作台：采集、检查和整理消息、API 鸡蛋与 Doge meme。
+> 一个运行在自己电脑上的群消息与 API Key 整理工具。它把已授权的 QQ、微信和公开网页信息集中到一个本地工作台，帮你找出 API 配置、检查是否能用，并按来源和状态整理保存。
 
----
+## 一句话说明
 
-## English
+**把散落在群聊和网页里的信息收进来 → 自动识别 API 地址和 Key → 脱敏展示并测试连通性 → 只在本机生成可搜索的情报与简报。**
 
-Egg Harvester is a local-first intelligence workbench. It collects messages from authorized QQ, WeChat, and web sources, extracts OpenAI-compatible API configurations, checks connectivity, and provides a local Web UI plus an optional macOS Swift shell.
+这是一个本地优先项目：默认 Web 服务只监听 `127.0.0.1:8890`，不会把聊天内容或 Key 自动上传到第三方。请只处理你有权访问和使用的数据。
 
-### Highlights
+## 适合做什么
 
-- Message ingestion and intelligence summaries
-- API-key extraction and connectivity checks
-- Safe DSH Desktop profile import with backups and rollback
-- Manageable **iconmeme** library: upload, name, select, and delete Doge images
-- Doge mascot, state-face customization, themes, and operation feedback
-- Offline unit tests, pinned dependencies, Docker support, and a reproducible Makefile workflow
+- 从 QQ / NapCat、微信本地数据库和公开网页收集消息。
+- 从普通消息、截图和多组日报中识别 `Base URL`、普通 Key 或 Base64 编码的 Key。
+- 把同一组的地址和 Key 正确配对，自动去重。
+- 测试 API 是否连通，并显示模型、延迟、错误原因和脱敏 curl 日志。
+- 标出“群里说可能失效”和“实时测试失败”这两种不同状态。
+- 在本地管理供应商、鸡蛋站、群文件、消息上下文、Doge 素材和 AI 简报。
 
-### Quick start
+## 当前不做什么
+
+- 不替用户登录 Telegram、Discord 或飞书。
+- 不要求把 Telegram / Discord / 飞书 Token、App Secret 或个人凭据交给助手。
+- 不把密钥写入 GitHub；本地数据库可能保存已验证 Key 的明文，这是为了重新测试和导入配置，必须保护好本机文件。
+- 不把公开网页采集误当成用户授权的私聊数据；QQ、微信等来源必须由操作者自行配置并确认授权。
+
+## 快速开始
 
 ```bash
-git clone <your-repository-url> egg-harvester
+git clone https://github.com/langcher752-droid/egg-harvester-doge-den.git egg-harvester
 cd egg-harvester
 cp .env.example .env
 make install
@@ -29,212 +35,86 @@ make test
 make run
 ```
 
-Open <http://127.0.0.1:8890/>.
+打开 <http://127.0.0.1:8890/>。
 
-### Docker
+## 常用入口
 
-```bash
-docker build -t egg-harvester:local .
-docker run --rm -p 8890:8890 \
-  --env-file .env \
-  -v "$(pwd)/runtime:/data" \
-  egg-harvester:local
-```
+| 入口 | 用途 |
+|---|---|
+| `/` | 消息流、群聊、手工收割和供应商管理 |
+| `/intel` | 情报简报 |
+| `/files` | 群文件与安全检查 |
+| `/doge` | Doge 动画和素材 |
+| `/stations` | 鸡蛋站 / API 中转站目录 |
 
-Docker runs the Python/FastAPI backend. macOS WeChat integration, NapCat, and the Swift desktop shell remain optional host integrations.
+## 支持的来源
 
-### Privacy
-
-This project can process private messages, images, and API credentials. Verified API keys are stored locally in SQLite in plaintext so they can be retested and exported; never commit `eggs.db`, `.env`, `media/`, logs, chat exports, QR codes, device files, or runtime data.
-
-### License
-
-MIT. See [`LICENSE`](LICENSE).
-
----
-
-本项目是一个本地优先的群情报工作台：从已授权的 QQ、微信和网页来源收集消息，提取可用的 OpenAI-compatible API 配置，运行连通性检查，并提供本地 Web UI 和可选的 macOS Swift 外壳。
-
-> **隐私警告**：本项目处理私人通信、图片和 API 凭据。默认 SQLite 数据库会保存已验证的 API key 明文，以支持重新测速和导入 DSH。不要把 `eggs.db`、`.env`、`media/`、聊天导出、二维码、设备文件或任何运行数据上传到 GitHub。
-
-## 支持范围
-
-| 组件 | 支持平台 | 说明 |
+| 来源 | 方式 | 说明 |
 |---|---|---|
-| FastAPI + Web UI | Linux / macOS | Docker 和本地 Python 均可运行 |
-| iconmeme / Doge 素材库 | Linux / macOS | 文件存储在 `static/iconmeme/`，默认被忽略 |
-| 微信本地库解密 | macOS，本机配置 | 需要用户自行提供 `WECHAT_WXID` 和 `WECHAT_CODE` |
-| QQ / NapCat | 由用户部署 | 通过 `NAP_HTTP_URL` 访问 OneBot HTTP API |
-| Swift 桌面外壳 | macOS | 需要 Xcode Command Line Tools；不在 Linux Docker 中运行 |
+| QQ / NapCat | OneBot HTTP | 需要操作者自行部署并配置 `NAP_HTTP_URL` |
+| 微信 | 本地数据库轮询 | 仅 macOS；需要用户自己的 `WECHAT_WXID`、`WECHAT_CODE` 和数据库路径 |
+| AI 福利网页 | 定时公开网页采集 | 不登录、不互动 |
+| 买鸡鸡go、白嫖社区、羊毛站目录 | 公开 API / 网页 | 只读采集，提取到的 Key 仍会经过连通性验证 |
 
-## 清洁安装
+## 手工收割支持的格式
 
-需要 Python 3.12.8、Node.js（仅用于前端语法检查）以及 Git。推荐使用项目内虚拟环境：
+可以粘贴普通配置：
+
+```text
+https://api.example.com/v1|sk-your-key
+```
+
+也可以粘贴群日报：
+
+```text
+【第1组】
+Base URL
+https://api.example.com/v1
+Jia mi Base 64
+<完整的 Base64 字符串>
+可用模型
+deepseek-v4
+```
+
+界面中的“预览解析/解码”只在本地解析，不会联网；点击“开始收割”后才会进行连通性测试。Key 在界面和 curl 日志中都会脱敏。
+
+## 安装与测试
+
+本地 Python：
 
 ```bash
-git clone <your-repository-url> egg-harvester
-cd egg-harvester
-cp .env.example .env
 make install
-```
-
-填写 `.env` 中实际需要的网关或本地服务配置。所有敏感配置都只放在 `.env`，不要写入源码。
-
-## 运行
-
-```bash
-make run
-```
-
-然后访问：
-
-- Web 工作台：<http://127.0.0.1:8890/>
-- Doge / iconmeme：<http://127.0.0.1:8890/doge>
-- 情报简报：<http://127.0.0.1:8890/intel>
-- 群文件决策：<http://127.0.0.1:8890/files>
-
-首次运行会在 `DB_PATH` 指定的位置创建 SQLite 表。`DB_PATH` 为空时使用项目目录下的 `eggs.db`；该文件已被 Git 忽略。
-
-## 测试和检查
-
-离线单元测试不需要网关、QQ、微信、Docker 或已有数据库：
-
-```bash
 make test
 make lint
 ```
 
-`test_e2e.py` 是本机集成测试，只在后端已经运行、并且你明确允许它访问本地数据时执行：
-
-```bash
-.venv/bin/python test_e2e.py
-```
-
-## Docker
-
-Docker 只提供 Python/FastAPI 后端，不包含 macOS 微信、Swift 外壳或 NapCat：
+Docker 只运行 Python/FastAPI 后端：
 
 ```bash
 docker build -t egg-harvester:local .
-docker run --rm -p 8890:8890 \
-  --env-file .env \
-  -v "$(pwd)/runtime:/data" \
-  egg-harvester:local
+docker run --rm -p 8890:8890 --env-file .env \
+  -v "$(pwd)/runtime:/data" egg-harvester:local
 ```
 
-容器默认使用：
-
-- 数据库：`/data/eggs.db`
-- 媒体：`/data/media`
-- 服务：`0.0.0.0:8890`
-
-## 可选集成
-
-### QQ / NapCat
-
-```dotenv
-NAP_HTTP_URL=http://127.0.0.1:3000
-NAP_CONTAINER=napcat
-DOCKER_BIN=
-```
-
-如果 Docker 不在 `PATH`，才设置 `DOCKER_BIN`。不要把容器配置中的 token 提交到仓库。
-
-### 微信
-
-只有在已获得授权、并且明确需要本地微信库轮询时才填写：
-
-```dotenv
-WECHAT_WXID=your_wxid
-WECHAT_CODE=your_code
-WECHAT_DB_DIR=/path/to/xwechat_files/.../db_storage
-WECHAT_ATTACH_DIR=/path/to/xwechat_files/.../msg/attach
-```
-
-未填写时微信解密功能保持关闭，不会使用仓库内的个人默认值。
-
-### 网页来源（无需登录）
-
-以下来源都是公开网页数据，只读采集、不登录、不互动，统一由 `web_watch.py` 每 6 小时跑一轮：
-
-| 模块 | 来源 | 落库 |
-|---|---|---|
-| `welfare.py` | AI 福利日报（GitHub `topics.jsonl`） | `web/welfare/topic:<id>` |
-| `baipiao.py` | 白嫖社区 Flarum API | `web/baipiao/bp:<id>` |
-| `mjjgo.py` | 买鸡鸡go Discourse API | `web/mjjgo/mjj:<id>` |
-| `gicp.py` | 羊毛站（Supabase `sites` 表，只读目录） | `web/gicp/gicp:<id>` |
-
-各模块都能单独跑（例如 `python gicp.py`），不依赖网关即可入库；提取到的 key 仍会走连通性验证。
-
-### 媒体预览与内容安全（NSFW）
-
-- 预览图：`GET /media-thumb?ref=<媒体路径|file:<id>>`，图片缩放 / 视频抽首帧，落地 `static/thumbs/`。
-- 内容检测：`nsfw.py` 默认走 **ONNX 视觉模型**（ViT-base NSFW，`models/nsfw_vit_int8.onnx`，CPU 约 1.5s/张），两级拦截 —— `p≥0.70` 明确不适宜、`p≥0.40 且中心肤色≥22%` 疑似擦边/暴露；再加纯肤色兜底（`p≥0.25 且 中心≥60% 且 整体≥55%`）；模型缺失时自动退回启发式（关键词 + 肤色 + 表情包跳过）。
-- 依赖：`numpy` + `onnxruntime` 装在项目内 `vendor/`（见 `requirements-ml.txt`），不改动 App 自带 Python；`vendor/`、`models/*.onnx` 不入库。
-- 命中后群文件不下载、不预览并标红，聊天图片只隐藏预览（归档照旧，保留撤回保命）。
-- 接口：`POST /files/inspect/{id}`（单个群文件）、`POST /media-scan` + `GET /media-scan/status`（媒体库批量体检）、`GET /media-nsfw`。
-- 新列：`raw_messages.nsfw / nsfw_score / nsfw_reason / thumb_ref`。
-
-### 鸡蛋站站点库（/stations）
-
-侧栏「鸡蛋站」不再是一个外链，而是一个可维护的站点库（`stations.py` + `stations` 表）：
-
-- 手工添加：粘贴 URL 自动抓 `<title>` / `description` / favicon（存 `static/logos/`），可编辑名称、类型（鸡蛋站 / API 中转 / 论坛）、靠谱程度 1–5、备注；
-- AI 速评：调用网关给单个站点写 80–140 字速评，落 `ai_summary`；
-- 批量导入（**先勾选、再入库**）：Safari 阅读列表 / Safari 个人收藏（读 `~/Library/Safari/Bookmarks.plist`，需要给 GroupIntel.app **完全磁盘访问权限**）、Chrome/Edge/Arc 书签、羊毛站目录（Supabase `sites`）、浏览器导出的书签 HTML。点「选择」后先拉候选清单，弹窗里可搜索 / 全选 / 逐条勾选，只导入选中的；已存在的自动跳过（候选 ≤30 条默认全选，超过则默认不选，防止一次灌进几百条书签）；
-- 卡片 / 列表两种排版（右上切换，记忆在 `localStorage['stations-layout']`）；搜索 / 按类型与来源筛选；`POST /stations/enrich` 在后台串行补全缺 logo 的站点；
-- 侧栏徽标显示真实数量（鸡蛋库 / 简报 / 站点库 / 供应商 / 群文件 / 群聊），不用点进去才有数字。
-
-接口：`GET /stations`、`POST /stations/{preview,add,update,delete,refresh,summarize,import_preview,import_selected,import,import_file,import_file_preview,enrich,summarize_missing}`、`GET /stations/{enrich_status,summarize_status}`。
-
-> 供应商体检（`providers.py`）：探测时改用浏览器 UA 并修正 baseURL 拼 `/models` 的方式，避免 Cloudflare 前面的中转站因 UA 被 403 误判成「失效」；`/v1/`、`/api/paas/v4` 这类写法都能正确拼出探测地址。
-
-### DSH Desktop
-
-鸡蛋库中的导入功能写入当前用户的 DSH Desktop profile：
-
-- `~/.dsh/profiles/desktop/cordis.patch.yml`
-- `~/.dsh/.credentials.yaml`
-
-导入使用 credential ref，不会把明文 key 写入 patch 文件。导入前请备份 DSH 配置，并确认你有权使用这些凭据。
-
-## iconmeme 素材库
-
-在 Web UI 的“设置 → Doge 个性化”中可以：
-
-- 上传 PNG / JPEG / GIF / WebP；
-- 设置显示名称；
-- 设为吉祥物；
-- 用作状态脸；
-- 删除素材。
-
-用户上传文件放在 `static/iconmeme/`，默认不会进入 Git。数据库只保存元数据和安全生成的文件名。
-
-## macOS Swift 外壳
-
-仅在 macOS 上执行：
+macOS 原生客户端：
 
 ```bash
 ./app/build.sh --install
-"$HOME/Applications/鸡蛋收割机.app/Contents/MacOS/GroupIntel" --check
+open "$HOME/Applications/鸡蛋收割机.app"
 ```
 
-Electron 目录是历史客户端，不是当前维护的桌面入口；后端和原生 Swift 外壳是推荐路径。
+## 隐私和发布前检查
 
-## 发布前检查
+以下文件不得提交到 GitHub：`.env`、`eggs.db`、`media/`、聊天导出、二维码、设备文件、日志、个人配置和任何 API Key。发布前至少运行：
 
 ```bash
 make test
+git diff --check
+git status --short
 ```
 
-发布前必须确认：
-
-1. `.env`、数据库、媒体和运行日志未被跟踪；
-2. 没有个人微信 ID、微信解密码、API key、二维码或设备身份文件；
-3. 已在全新 Linux checkout 中执行 `make install && make test`；
-4. 已阅读并确认第三方依赖和数据源的使用许可；
-5. GitHub 仓库设置为合适的私有或公开可见性。
+完整部署步骤见 [`DEPLOYMENT.md`](DEPLOYMENT.md)，运维交接见 [`交接文档-完整版.md`](交接文档-完整版.md)。
 
 ## License
 
-本仓库尚未声明统一开源许可证。发布到 GitHub 前，请补充 `LICENSE`，并确认 Doge 素材、图标、第三方前端库和数据源均具有可再分发许可。
+当前仓库的许可证状态请以 [`LICENSE`](LICENSE) 为准；发布前请确认 Doge 素材、图标、第三方前端库和数据源具有可再分发许可。

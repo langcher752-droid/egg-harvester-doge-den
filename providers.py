@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import base64
 import os
 import re
 import shutil
@@ -19,6 +20,8 @@ import time
 from typing import Dict, List, Optional
 
 import httpx
+
+from config import httpx_kwargs
 import yaml
 
 HOME = os.path.expanduser("~")
@@ -58,7 +61,22 @@ def _models_url(base: str) -> str:
         return b + "/models"
     return b + "/v1/models"
 
-DSH_PROFILES = os.path.join(DSH_DIR, "profiles")
+def _model_urls(base: str) -> List[str]:
+    """返回有限、去重的 models 候选地址，兼容根路径和已带版本的网关。"""
+    primary = _models_url(base)
+    b = (base or "").strip().rstrip("/")
+    candidates = [primary]
+    if b and not b.lower().endswith("/models"):
+        candidates.append(b + "/models")
+    return list(dict.fromkeys(u for u in candidates if u))
+
+
+def _redact(text: str, key: str) -> str:
+    value = str(text or "")
+    if key:
+        value = value.replace(key, "[REDACTED]")
+    return re.sub(r"(Bearer|x-api-key)\s+[^\s'\"]+", r"\1 [REDACTED]", value, flags=re.I)
+
 
 
 class _DshLoader(yaml.SafeLoader):
@@ -72,6 +90,35 @@ _DshLoader.add_multi_constructor("!js", lambda loader, suffix, node: None)
 def _load_yaml(path: str):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.load(f, Loader=_DshLoader)
+
+
+def _decode_key(value: Optional[str]) -> str:
+    """读取 provider 配置时兼容明文、data/base64 前缀和纯 Base64 key。"""
+    raw = str(value or "").strip()
+    if not raw or "*" in raw:
+        return raw
+    candidate = raw
+    if candidate.lower().startswith("base64:"):
+        candidate = candidate.split(":", 1)[1].strip()
+    elif candidate.lower().startswith("data:text/plain;base64,"):
+        candidate = candidate.split(",", 1)[1].strip()
+    if len(candidate) % 4 or not re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", candidate):
+        return raw
+    try:
+        decoded = base64.b64decode(candidate, validate=True).decode("utf-8").strip()
+    except (ValueError, UnicodeDecodeError, base64.binascii.Error):
+        return raw
+    if decoded.startswith(("sk-", "sk-ant-", "gsk_", "AIza", "xai-", "pk_live_", "AKIA")):
+        return decoded
+    return raw
+
+
+    if not key:
+        return ""
+    k = str(key)
+    if len(k) <= 10:
+        return k[:2] + "***"
+    return k[:6] + "***" + k[-4:]
 
 
 def _mask(key: Optional[str]) -> str:
@@ -110,7 +157,7 @@ def _dsh_provider_entry(name: str, cfg: Dict, creds: Dict[str, str],
     base = cfg.get("baseURL") or cfg.get("base_url") or ""
     if not base:
         return None
-    key = cfg.get("apiKey") or ""
+    key = _decode_key(cfg.get("apiKey") or "")
     env_name = cfg.get("apiKeyEnv") or ""
     if env_name and not key:
         key = os.getenv(env_name) or creds.get(env_name, "")
@@ -236,7 +283,7 @@ def list_workbuddy() -> List[Dict]:
         if not isinstance(it, dict):
             continue
         base = _clean_base(it.get("url") or "")
-        key = it.get("apiKey") or ""
+        key = _decode_key(it.get("apiKey") or "")
         if not base:
             continue
         groups.setdefault((base, key), []).append(it)
@@ -286,7 +333,7 @@ def _parse_ccswitch(settings_config: str):
         if "BASE_URL" in kl or kl.endswith("_URL"):
             base = base or str(v)
         if "API_KEY" in kl or "AUTH_TOKEN" in kl:
-            key = key or str(v)
+            key = _decode_key(v)
     if not base:
         raw = cfg.get("config") or ""
         m = re.search(r'base_url\s*=\s*"([^"]+)"', raw)
@@ -296,9 +343,9 @@ def _parse_ccswitch(settings_config: str):
         auth = cfg.get("auth") or {}
         for k, v in auth.items():
             if "API_KEY" in k.upper() or "TOKEN" in k.upper():
-                key = key or str(v)
+                key = _decode_key(v)
                 break
-    return _clean_base(base), key
+    return _clean_base(base), _decode_key(key)
 
 
 def list_ccswitch() -> List[Dict]:
@@ -370,7 +417,8 @@ def test_one(p: Dict) -> Dict:
         hint = f"（{env} 在 ~/.dsh/.credentials.yaml 里没有值）" if env else ""
         return {**p, "ok": False, "status": 0, "latency_ms": 0,
                 "error": f"未配置 API Key{hint}", "curl": "", "trace": []}
-    url = _models_url(base)
+    urls = _model_urls(base)
+    url = urls[0] if urls else ""
     if style == "anthropic":
         headers = {**_UA_HEADERS, "x-api-key": key, "anthropic-version": "2023-06-01"}
         curl = f"curl -sS -m {int(TIMEOUT)} '{url}' -H 'x-api-key: {_mask(key)}' -H 'anthropic-version: 2023-06-01'"
@@ -380,9 +428,22 @@ def test_one(p: Dict) -> Dict:
 
     t0 = time.time()
     try:
-        r = httpx.get(url, headers=headers, timeout=TIMEOUT, follow_redirects=True)
+        r = None
+        last_error = ""
+        for candidate in urls:
+            url = candidate
+            try:
+                r = httpx.get(candidate, headers=headers, timeout=TIMEOUT, follow_redirects=True, **httpx_kwargs())
+                if r.status_code not in (404, 405) or candidate == urls[-1]:
+                    break
+            except Exception as exc:
+                last_error = f"{type(exc).__name__}: {exc}"
+                if candidate == urls[-1]:
+                    raise
+        if r is None:
+            raise RuntimeError(last_error or "没有可用的 models 地址")
         ms = int((time.time() - t0) * 1000)
-        body = (r.text or "")[:400]
+        body = _redact((r.text or "")[:400], key)
         ok = r.status_code == 200
         models = []
         if ok:
@@ -399,7 +460,7 @@ def test_one(p: Dict) -> Dict:
     except Exception as e:
         ms = int((time.time() - t0) * 1000)
         return {**p, "ok": False, "status": 0, "latency_ms": ms,
-                "error": f"{type(e).__name__}: {e}"[:200], "curl": curl}
+                "error": f"{type(e).__name__}: {_redact(str(e), key)}"[:200], "curl": curl}
 
 
 def test_all(ids: Optional[List[str]] = None) -> Dict:

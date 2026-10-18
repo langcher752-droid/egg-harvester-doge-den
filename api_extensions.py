@@ -10,7 +10,8 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
 import yaml
-from config import DB_PATH
+from config import DB_PATH, NAP_HTTP_URL
+import napcat
 
 
 def get_conn():
@@ -523,34 +524,42 @@ def _docker(*args, timeout: int = 20):
 
 
 def qq_login_status() -> Dict:
-    """登录状态：优先问 OneBot get_login_info；未登录时看容器里的二维码是否新鲜。"""
-    import urllib.request
-
-    base = os.getenv("NAP_HTTP_URL", "http://127.0.0.1:3000").rstrip("/")
+    """登录状态：复用 NapCat 客户端配置；网络不可达时返回 unknown 而非伪报未登录。"""
+    checked_at = int(time.time())
     online, uin, nickname = False, 0, ""
+    data = None
+    error = ""
     try:
-        with urllib.request.urlopen(f"{base}/get_login_info", timeout=4) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-        data = payload.get("data") or {}
-        uin = int(data.get("user_id") or 0)
-        nickname = data.get("nickname") or ""
-        online = uin > 0 and payload.get("retcode") == 0
-    except Exception:
-        online = False
+        data = napcat.call("get_login_info")
+        if isinstance(data, dict):
+            uin = int(data.get("user_id") or 0)
+            nickname = str(data.get("nickname") or "")
+            online = uin > 0
+        else:
+            error = "NapCat 未返回有效登录信息"
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"[:200]
 
     qr_age = None
     res = _docker("exec", NAP_CONTAINER, "sh", "-c",
                   "stat -c %Y /app/napcat/cache/qrcode.png 2>/dev/null")
     if res.returncode == 0 and res.stdout.strip().isdigit():
-        qr_age = int(time.time()) - int(res.stdout.strip())
+        qr_age = max(0, int(time.time()) - int(res.stdout.strip()))
 
+    # NapCat API 不可达时与明确的未登录区分开；前端可保留上次在线状态。
+    reachable = bool(online or (not error and isinstance(data, dict)))
     return {
         "online": online,
+        "state": "online" if online else ("offline" if reachable else "unknown"),
+        "reachable": reachable,
+        "error": error,
+        "checked_at": checked_at,
         "uin": uin,
         "nickname": nickname,
         "qr_age": qr_age,
         "qr_fresh": qr_age is not None and 0 <= qr_age <= 300,
         "container": NAP_CONTAINER,
+        "nap_url": NAP_HTTP_URL,
     }
 
 
